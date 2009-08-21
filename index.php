@@ -1,8 +1,7 @@
 <?php
-
 // -- enter your paths here
 define("RELATIVE_CRUD_CLASS_LOCATION","cruddy_mysql/"); // -- relative from where this file is (must be publicly accessed)
-define("PUBLIC_CRUD_CLASS_LOCATION","http://crud.localhost:8888/cruddy_mysql/"); // -- full path to where cruddy_mysql lives
+define("PUBLIC_CRUD_CLASS_LOCATION","http://cerealcms.com/cruddy_mysql/"); // -- full path to where cruddy_mysql lives
 
 require_once(RELATIVE_CRUD_CLASS_LOCATION."cruddy_mysql.php");
 
@@ -10,7 +9,7 @@ ob_start();
 $crudAdmin = new cruddyMysqlAdmin();
 if (!$crudAdmin->adminDBExists()) {
 	if (!isset($_GET['admin'])) {
-		header("Location: ?admin=true&initialize_server");
+		header("Location: ?admin=true&initialize_server=true");
 		exit;
 	}
 } else {
@@ -101,10 +100,8 @@ echo '
 	<html xmlns="http://www.w3.org/1999/xhtml">
 	<head>
 	<title>'.$desc.'</title>
-	<style type="text/css">
-	'.$crudAdmin->displayGlobalCSS().'
-	'.$crudAdmin->displayThemeCSS().'
-	</style>
+	<link rel="stylesheet" type="text/css" href="'.$crudAdmin->displayGlobalCSS().'" /> 
+	<link rel="stylesheet" type="text/css" href="'.$crudAdmin->displayThemeCSS().'" /> 
 	</head>
 	<script type="text/javascript" src="'.PUBLIC_CRUD_CLASS_LOCATION.'scripts/prototype.js"></script>
 	'.$menuJS.'
