@@ -1,7 +1,7 @@
 <?php
 // -- enter your paths here
 define("RELATIVE_CRUD_CLASS_LOCATION","cruddy_mysql/"); // -- relative from where this file is (must be publicly accessed)
-define("PUBLIC_CRUD_CLASS_LOCATION","http://cerealcms.com/cruddy_mysql/"); // -- full path to where cruddy_mysql lives
+define("PUBLIC_CRUD_CLASS_LOCATION","http://localhost:8888/cruddy_mysql/"); // -- full path to where cruddy_mysql lives
 
 require_once(RELATIVE_CRUD_CLASS_LOCATION."cruddy_mysql.php");
 
