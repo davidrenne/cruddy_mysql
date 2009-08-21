@@ -221,7 +221,7 @@ if (!isset($_GET['admin']) && isset($_COOKIE['current_user'])) {
 		echo "<br/>";	
 		$crudAdmin->displayLoginForm();
 	}
-} elseif (isset($_GET['admin']) && $crudAdmin->cruddyAdministrator) {
+} elseif ((isset($_GET['admin']) && $crudAdmin->cruddyAdministrator) || !$crudAdmin->adminDBExists()) {
 	
 	echo '<script type="text/javascript" src="'.PUBLIC_CRUD_CLASS_LOCATION.'scripts/crud_admin.js"></script>';
 	echo '<span style="font-size:1.2em;">';
