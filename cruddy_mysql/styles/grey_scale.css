@@ -1,0 +1,18 @@
+table {border-collapse: collapse;
+border: 2px solid #000;
+font: normal 80%/140% arial, helvetica, sans-serif;
+color: #555;
+background: #fff;}
+
+
+td, th {border: 1px dotted #bbb;
+padding: .5em;}
+
+
+caption {padding: 0 0 .5em 0;
+text-align: left;
+font-size: 1.4em;
+font-weight: bold;
+text-transform: uppercase;
+color: #333;
+background: transparent;}

@@ -1,7 +1,18 @@
 <?php
-// -- enter your paths here
-define("RELATIVE_CRUD_CLASS_LOCATION","cruddy_mysql/"); // -- relative from where this file is (must be publicly accessed)
-define("PUBLIC_CRUD_CLASS_LOCATION","http://localhost:8888/cruddy_mysql/"); // -- full path to where cruddy_mysql lives
+
+// -- relative path of where the cruddy_mysql directory is from where this file is (must be publicly accessed)
+define("RELATIVE_CRUD_CLASS_LOCATION","cruddy_mysql/");
+if ($_SERVER['SERVER_PORT'] != '80') {
+	if ($_SERVER['SERVER_PORT'] == 443) {
+		$secure = 's';
+	}
+	$port = ":".$_SERVER['SERVER_PORT'];
+}
+$paths = explode('/',$_SERVER['REQUEST_URI']);
+unset($paths[sizeof($paths)-1]);
+unset($paths[0]);
+
+define("PUBLIC_CRUD_CLASS_LOCATION",'http'.$secure.'://'.$_SERVER['SERVER_NAME'].$port.'/'.implode('/',$paths).'/'.RELATIVE_CRUD_CLASS_LOCATION);
 
 require_once(RELATIVE_CRUD_CLASS_LOCATION."cruddy_mysql.php");
 
@@ -9,89 +20,47 @@ ob_start();
 $crudAdmin = new cruddyMysqlAdmin();
 if (!$crudAdmin->adminDBExists()) {
 	if (!isset($_GET['admin'])) {
-		header("Location: ?admin=true&initialize_server=true");
+		setcookie("tempAdmin", "1", time()+3600*24*7);
+		header("Location: ".$_SERVER['PHP_SELF']."?admin=true&initialize_server=true");
 		exit;
 	}
 } else {
+	 
+	// -- auto redirect based on connection status of left off steps
 	if (is_array($crudAdmin->currentAdminDB['crud']['mysql_server_names'])) {
 		foreach ($crudAdmin->currentAdminDB['crud']['mysql_server_names'] as $mySQLServer=>$server) {
 			if (!@mysql_connect($crudAdmin->currentAdminDB['crud']['mysql_server_names'][$mySQLServer].":".$crudAdmin->currentAdminDB['crud']['mysql_ports'][$mySQLServer],$crudAdmin->currentAdminDB['crud']['mysql_user_names'][$mySQLServer],$crudAdmin->currentAdminDB['crud']['mysql_passwords'][$mySQLServer])) {
 				if (!isset($_GET['initialize_server'])) {
-					header("Location: ?admin=true&initialize_server&server=$mySQLServer&msg=There was a problem with your mySQL server credentials.  Please update them.");
+					header("Location: ".$_SERVER['PHP_SELF']."?admin=true&initialize_server&server=$mySQLServer&msg=There was a problem with your mySQL server credentials.  Please update them.");
 					exit;
 				}
 			}
 		}
 	}
+	if ($crudAdmin->currentAdminDB['crud']['completed_step'] != 'All' && count($_GET) == 0 ) {
+		setcookie("tempAdmin", "1", time()+3600*24*7);
+		header("Location: ".$_SERVER['PHP_SELF']."?admin=true&".$crudAdmin->steps[$crudAdmin->currentAdminDB['crud']['completed_step']+1]."=true");
+		exit;
+	}
+}
+
+
+if (isset($_GET['logoff'])) {
+	setcookie("current_user", "0", time()-3600);
+	setcookie("current_role", "0", time()-3600);
+	header('Location: ?');
 }
 
 if (isset($crudAdmin->currentAdminDB['crud']['console_name'])) {
 	$desc = $crudAdmin->currentAdminDB['crud']['console_name']." Administrator";
 } else {
-	$extra = (isset($_GET['admin'])) ? " Site Setup" : "";
+	$extra = (isset($_GET['admin'])) ? " Configuration Setup" : "";
 	$desc = "CRUDDY MYSQL " . $extra;
 }
 
 if (isset($_GET['admin'])) {
 	$div="<div id=\"clear\"></div>";
 } else {
-	$menuJS = 
-	'<script>
-		function countLI(elName){
-			if ($(elName)) {
-				var ul = $(elName);
-				var i=0, c =0;
-				while(ul.getElementsByTagName("li")[i++]) {
-					c++;
-				}
-				return c;
-			}
-		}
-		window.onload=function(){
-			if ($("menu1")) {
-				var width = countLI("m-top-ul1") * 100;
-				var width2 = countLI("m-top-ul2")  * 65;
-				$("menu1").style.width = width + "px";
-				$("menu2").style.width = width2 + "px";
-				Event.observe("menu1", "mousemove", function(event){
-					coordinateX=Event.pointerX(event)-$("menu1").offsetLeft;
-					$("slider1").style.marginLeft=coordinateX-20+"px";
-				});
-				Event.observe("menu2", "mousemove", function(event){
-					coordinateX=Event.pointerX(event)-$("menu2").offsetLeft;
-					$("slider2").style.marginLeft=coordinateX-20+"px";
-					$("serverList").style.top =Event.pointerY(event)+"px";
-					$("databaseList").style.top =Event.pointerY(event)+"px";
-					$("FieldList").style.top =Event.pointerY(event)+"px";
-					$("serverList").style.left =Event.pointerX(event)+"px";
-					$("databaseList").style.left =Event.pointerX(event)+"px";
-					$("FieldList").style.left =Event.pointerX(event)+"px";
-				});
-				Event.observe("menu2", "click", function(event){
-					coordinateX=Event.pointerX(event)-$("menu2").offsetLeft;
-					$("slider2").style.marginLeft=coordinateX-20+"px";
-					$("serverList").style.top =Event.pointerY(event)+"px";
-					$("databaseList").style.top =Event.pointerY(event)+"px";
-					$("FieldList").style.top =Event.pointerY(event)+"px";
-					$("serverList").style.left =Event.pointerX(event)+"px";
-					$("databaseList").style.left =Event.pointerX(event)+"px";
-					$("FieldList").style.left =Event.pointerX(event)+"px";
-				});
-			}
-		}
-		
-		function handleEscapeKey(e) {
-			var kC  = (window.event) ? event.keyCode : e.keyCode;
-			var Esc = (window.event) ? 27 : e.DOM_VK_ESCAPE;
-			if(kC==Esc) {
-				if ($("serverList")) {
-					$("serverList").style.display = "none";
-					$("databaseList").style.display = "none";
-					$("FieldList").style.display = "none";
-				}
-			}
-		}
-	</script>';
 	$bodyOnKeyPress = "onkeypress=\"handleEscapeKey(event);\"";
 }
 
@@ -104,7 +73,7 @@ echo '
 	<link rel="stylesheet" type="text/css" href="'.$crudAdmin->displayThemeCSS().'" /> 
 	</head>
 	<script type="text/javascript" src="'.PUBLIC_CRUD_CLASS_LOCATION.'scripts/prototype.js"></script>
-	'.$menuJS.'
+	<script type="text/javascript" src="'.PUBLIC_CRUD_CLASS_LOCATION.'scripts/cruddy_mysql.js"></script>
 	<body '.$bodyOnKeyPress.'>
 	';
 
@@ -112,7 +81,13 @@ if (isset($_GET['msg'])) {
 	echo "<h3 style='color:#E63C1E;font-size:1.5em'>".$_GET['msg']."</h3>";
 }
 
-echo "<div style=\"float:left;padding-right:16px;\"><h1><a href=\"$_SERVER[PHP_SELF]\">$desc</a></h1></div>$div";
+echo "<div style=\"float:left;padding-right:16px;\"><h1>";
+echo (isset($_GET['admin'])) ? "" : "<a href=\"$_SERVER[PHP_SELF]\">";
+echo $desc;
+echo (isset($_GET['admin'])) ? "" : "</a>";
+echo "</h1></div>$div";
+
+
 	
 if (!isset($_GET['admin']) && isset($_COOKIE['current_user'])) {
 	
@@ -142,19 +117,21 @@ if (!isset($_GET['admin']) && isset($_COOKIE['current_user'])) {
 		}
 		$editThemeLink = (isset($crudAdmin->currentAdminDB['crud']['theme'])) ? "&edit=".$crudAdmin->currentAdminDB['crud']['theme'] : "";
 	}
+	
 	$groupLinks = "
 		<div style=\"float:left\" id=\"menu1\" class=\"menu\">
 			<div id=\"m-top\">
 				<ul id=\"m-top-ul1\">
-					<li><a href=\"?\">Home</a></li>";
-	if (isset($crudAdmin->currentAdminDB['crud']['groups'])) {
+					<li><a href=\"?\">Home</a></li>\n";
+	if (isset($crudAdmin->currentAdminDB['crud']['groups']) && $crudAdmin->currentAdminDB['crud']['group_tables'] == 1) {
 		foreach ($crudAdmin->currentAdminDB['crud']['groups'] as $k=>$v) {
 			if (!in_array($k,$crudAdmin->currentAdminDB['crud']['roles'][$_COOKIE['current_role']]['groups'])) {
 				continue;
 			}
-			$groupLinks .= "<li><a href=\"?group=$k\">$k</a></li>";
+			$groupLinks .= "\t\t\t\t\t<li><a href=\"?group=$k\">$k</a></li>\n";
 		}
-		$groupLinks .= "</ul>	
+		$groupLinks .= "\t\t\t\t\t<li><a href=\"?logoff\">Logoff</a></li>
+				</ul>	
 			</div>	
 			<div id=\"m-slider\">
 				<div id=\"slider1\"></div> 	
@@ -180,14 +157,14 @@ if (!isset($_GET['admin']) && isset($_COOKIE['current_user'])) {
 		<div style=\"float:left\" id=\"menu2\" class=\"menu2\">
 			<div id=\"m-top\">
 				<ul id=\"m-top-ul2\">
-					<li><a onclick=\"javascript:$('serverList').style.left = $('slider2').style.marginLeft;$('serverList').style.display = 'inline';\" href=\"#\">Servers</a></li>
-					<li><a href=\"$_SERVER[PHP_SELF]?admin=true&select_database=true&edit=true\">Databases</a></li>
-					<li><a onclick=\"javascript:$('databaseList').style.left = $('slider2').style.marginLeft;$('databaseList').style.display = 'inline';\" href=\"#\">Tables</a></li>
-					<li><a href=\"$_SERVER[PHP_SELF]?admin=true&select_groups=true&edit=true\">Groups</a></li>
-					<li><a href=\"$_SERVER[PHP_SELF]?admin=1&select_roles&edit=true\">Roles</a></li>
-					<li><a href=\"$_SERVER[PHP_SELF]?admin=1&select_users&edit=true\">Users</a></li>
-					<li><a href=\"$_SERVER[PHP_SELF]?admin=true&select_theme=true$editThemeLink\">Themes</a></li>
-					<li><a onclick=\"javascript:$('FieldList').style.left = $('slider2').style.marginLeft;$('FieldList').style.display = 'inline';\" href=\"#\">Fields</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);$('serverList').style.left = $('slider2').style.marginLeft;$('serverList').style.display = 'inline';\" href=\"#\">Servers</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=true&select_database=true&edit=true';\" href=\"#\">Databases</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);$('databaseList').style.left = $('slider2').style.marginLeft;$('databaseList').style.display = 'inline';\" href=\"#\">Tables</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=true&select_groups=true&edit=true';\" href=\"#\">Groups</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=1&select_roles&edit=true';\" href=\"#\">Roles</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=1&select_users&edit=true';\" href=\"#\">Users</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=true&select_theme=true$editThemeLink';\" href=\"#\">Themes</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);$('FieldList').style.left = $('slider2').style.marginLeft;$('FieldList').style.display = 'inline';\" href=\"#\">Fields</a></li>
 				</ul>	
 			</div>	
 			<div id=\"m-slider\">
@@ -218,7 +195,7 @@ if (!isset($_GET['admin']) && isset($_COOKIE['current_user'])) {
 		echo "<br/>";	
 		$crudAdmin->displayLoginForm();
 	}
-} elseif ((isset($_GET['admin']) && $crudAdmin->cruddyAdministrator) || !$crudAdmin->adminDBExists()) {
+} elseif ((isset($_GET['admin']) && $crudAdmin->cruddyAdministrator) || (isset($_COOKIE['tempAdmin']))) {
 	
 	echo '<script type="text/javascript" src="'.PUBLIC_CRUD_CLASS_LOCATION.'scripts/crud_admin.js"></script>';
 	echo '<span style="font-size:1.2em;">';

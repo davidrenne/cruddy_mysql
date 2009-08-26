@@ -24,8 +24,8 @@
 	}
 	
    function storeConnectionInfo(option) {
-		var url = "index.php?";
-		var params = "admin=1&initialize_server=1&store_database=1&server=" + $("server").value + "&adminname=" + $("adminname").value + "&username=" + $("username").value + "&password=" + $("password").value + "&port=" + $("port").value;
+		var url = location.pathname;
+		var params = "?admin=1&initialize_server=1&store_database=1&server=" + $("server").value + "&adminname=" + $("adminname").value + "&username=" + $("username").value + "&password=" + $("password").value + "&port=" + $("port").value;
       new Ajax.Request( url + params,
       {
          method: 'get',
@@ -35,9 +35,14 @@
             $("results").innerHTML = response;
           } else {
           	if (option == 0) {
-            	document.location = 'index.php?admin=1&select_database';
+          		var redir = readCookie('redirect');
+          		if (redir == null) {
+            		document.location = location.pathname + '?admin=1&select_database';
+          		} else {
+          			document.location = redir;
+          		}
           	} else {
-            	document.location = 'index.php?admin=true&initialize_server=1&newserver=1';
+         		document.location = location.pathname + '?admin=true&initialize_server=1&newserver=1';
           	}
           }
          },
@@ -46,8 +51,8 @@
 	}	
 	
 	function storeDatabaseInfo() {
-		var url = "index.php?";
-		var params = "admin=1&select_database=1&store_database=1";
+		var url = location.pathname;
+		var params = "?admin=1&select_database=1&store_database=1";
 		var selectobject=document.getElementById("database")
 		for (var i=0; i<selectobject.length; i++){
 			if (selectobject.options[i].selected) {
@@ -62,15 +67,20 @@
           if (response != false) {
             $("results").innerHTML = response;
           } else {
-            document.location = 'index.php?admin=1&select_tables';
+       		var redir = readCookie('redirect');
+       		if (redir == null) {
+            	document.location = location.pathname + '?admin=1&select_tables';
+       		} else {
+       			document.location = redir;
+       		}
           }
          },
          onFailure: function() { alert('An unexpected error occurred.'); }
       });
 	}
 	function storeThemeInfo() {
-		var url = "index.php?";
-		var params = "admin=1&select_theme=1&store_database=1&theme=" + document.getElementById("theme").value;
+		var url = location.pathname;
+		var params = "?admin=1&select_theme=1&store_database=1&theme=" + document.getElementById("theme").value;
       new Ajax.Request( url + params,
       {
          method: 'get',
@@ -79,7 +89,7 @@
           if (response != false) {
             $("results").innerHTML = response;
           } else {
-            document.location = 'index.php';
+            document.location = location.pathname;
           }
          },
          onFailure: function() { alert('An unexpected error occurred.'); }
@@ -87,8 +97,8 @@
 	}
 	
 	function lookupFieldsFromTable(val,p1,p2,p3,p4) {
-		var url = "index.php?";
-		var params = "admin=1&find_fields=1&table=" + val + "&server=" + p1 + "&database=" + p2 + "&k1=" + p3 + "&k2=" + p4;
+		var url = location.pathname;
+		var params = "?admin=1&find_fields=1&table=" + val + "&server=" + p1 + "&database=" + p2 + "&k1=" + p3 + "&k2=" + p4;
       new Ajax.Request( url + params,
       {
          method: 'get',
@@ -229,12 +239,6 @@
 				from.options[i] = null;
 			}
 		}
-		
-/*		if ((arguments.length<3) || (arguments[2]==true)) {
-			sortSelect(from);
-			sortSelect(to);
-		}*/
-		
 		from.selectedIndex = -1;
 		to.selectedIndex = -1;
 	}

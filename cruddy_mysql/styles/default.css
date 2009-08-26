@@ -1,0 +1,58 @@
+table {
+color: #7F7F7F;
+font: 0.8em/1.6em "Trebuchet MS",Verdana,sans-serif;
+border-collapse: collapse
+}
+
+
+table,caption {
+border-right: 1px solid #CCC;
+border-left: 1px solid #CCC
+}
+
+
+caption,th,td {
+border-left: 0;
+padding: 10px
+}
+
+
+caption,thead th,tfoot th,tfoot td {
+background-color: #E63C1E;
+color: #FFF;
+font-weight: bold;
+text-transform: uppercase
+}
+
+
+thead th {
+background-color: #C30;
+color: #FFB3A6;
+text-align: center
+}
+
+tbody tr.odd {
+background-color: #F7F7F7;
+color: #666
+}
+
+a {
+color: #333;
+text-decoration: none;
+border-bottom: 1px dotted #E63C1E
+}
+
+
+tbody tr:hover {
+background-color: #EEE;
+color: #333
+}
+
+
+tbody tr:hover a {
+background-color: #FFF
+}
+
+tbody td+td+td+td a:active,tbody td+td+td+td a:hover,tbody td+td+td+td a:focus,tbody td+td+td+td a:visited {
+color: #E63C1E
+}
