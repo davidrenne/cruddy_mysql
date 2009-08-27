@@ -1553,11 +1553,14 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			$this->currentAdminDB['crud']['mysql_user_names'][$serverHash] = $_GET['username'];
 			$this->currentAdminDB['crud']['mysql_passwords'][$serverHash] = $_GET['password'];
 			$this->currentAdminDB['crud']['mysql_ports'][$serverHash] = $_GET['port'];
-			// -- update connections for each matching DB
-			foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG] as $k=>$v) {
-				$parts = explode('/',$this->currentAdminDB[CRUD_FIELD_CONFIG][$k][TABLE_CONFIG][OBJECT_CONNECTION_STRING]);
-				if (stristr($this->currentAdminDB[CRUD_FIELD_CONFIG][$k][TABLE_CONFIG][OBJECT_CONNECTION_STRING] ,$_GET['server'])) {
-					$this->currentAdminDB[CRUD_FIELD_CONFIG][$k][TABLE_CONFIG][OBJECT_CONNECTION_STRING] = "mysql://".$_GET['username'].":".$_GET['password']."@".$_GET['server'].":".$_GET['port']."/".$parts[sizeof($parts)-1];
+			
+			if (isset($this->currentAdminDB[CRUD_FIELD_CONFIG])) {
+				// -- update connections for each matching DB
+				foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG] as $k=>$v) {
+					$parts = explode('/',$this->currentAdminDB[CRUD_FIELD_CONFIG][$k][TABLE_CONFIG][OBJECT_CONNECTION_STRING]);
+					if (stristr($this->currentAdminDB[CRUD_FIELD_CONFIG][$k][TABLE_CONFIG][OBJECT_CONNECTION_STRING] ,$_GET['server'])) {
+						$this->currentAdminDB[CRUD_FIELD_CONFIG][$k][TABLE_CONFIG][OBJECT_CONNECTION_STRING] = "mysql://".$_GET['username'].":".$_GET['password']."@".$_GET['server'].":".$_GET['port']."/".$parts[sizeof($parts)-1];
+					}
 				}
 			}
 			$this->writeAdminDB();
@@ -1573,7 +1576,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			$resultrows = $this->queryDatabase(GET_DATABASES_SQL,$conn);
 			foreach ($resultrows as $key=>$value) {
 				$selected = "";
-				if (in_array($value['Database'],$this->currentAdminDB['crud']['mysql_databases'][$mySQLServer.":".$this->currentAdminDB['crud']['mysql_ports'][$mySQLServerHash]]) || !isset($_GET['edit'])) {
+				if ($this->currentAdminDB['crud']['mysql_databases'][$this->currentAdminDB['crud']['mysql_server_names'][$mySQLServerHash].":".$this->currentAdminDB['crud']['mysql_ports'][$mySQLServerHash]] == $value['Database']|| !isset($_GET['edit'])) {
 					$selected = "selected";
 				}
 				if ($value['Database'] == 'information_schema' || $value['Database'] == 'mysql') { continue; }
@@ -1920,16 +1923,65 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						}
 					}
 				}
-				 
+				// -- turning off comments in the files to conserve size
+				$showComments = false;
 				foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG] as $tableHash=>$obj) {
 					$drawFunctions .= "\$crudAdmin->paint('$tableHash');\n\n";
-					$functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE LOADING A TABLE RECORDSET (Primarily used to overwrite parts of the serialized array with \$_SESSION vars and application specific logic)\n*/\n\nfunction pre_process_load_".$this->cleanTableNames($tableHash)."(\$pointer){\n\t//--add your custom logic here such as changing \$pointer[TABLE_CONFIG][OBJECT_READ_FILTER] with a dynamic where clause or \$pointer['fieldname_config']['VALUE'] for overriding values or any attributes possible in the config array \n\treturn \$pointer;\n}\n\n";
-					$functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE INSERTING A RECORD\n*/\n\nfunction new_pre_process_".$this->cleanTableNames($tableHash)."(){\n\t//--add your custom logic here before inserting a record in $tableHash -- return false if not wanting to add new\n\treturn true;\n}\n\n";
-					$functions .= "/*\n* ".strtoupper($tableHash)." POST PROCESSES AFTER INSERTING A RECORD\n*/\n\nfunction new_post_process_".$this->cleanTableNames($tableHash)."(){\n\t//--add your custom logic here after inserting a record in $tableHash\n\treturn true;\n}\n\n";
-					$functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE UPDATING A RECORD\n*/\n\nfunction update_pre_process_".$this->cleanTableNames($tableHash)."(){\n\t//--add your custom logic here before updating a record in  $tableHash -- return false if not wanting to update the record because of logical checks\n\treturn true;\n}\n\n";
-					$functions .= "/*\n* ".strtoupper($tableHash)." POST PROCESSES AFTER UPDATING A RECORD\n*/\n\nfunction update_post_process_".$this->cleanTableNames($tableHash)."(){\n\t//--add your custom logic here after updating a record in $tableHash\n\treturn true;\n}\n\n";
-					$functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE DELETING A RECORD\n*/\n\nfunction delete_pre_process_".$this->cleanTableNames($tableHash)."(){\n\t//--add your custom logic here before deleing a record in  $tableHash -- return false if not wanting to delete the record based on logic you add\n\treturn true;\n}\n\n";
-					$functions .= "/*\n* ".strtoupper($tableHash)." POST PROCESSES AFTER DELETING A RECORD\n*/\n\nfunction delete_post_process_".$this->cleanTableNames($tableHash)."(){\n\t//--add your custom logic here after deleing a record in $tableHash\n\treturn true;\n}\n\n";
+					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE LOADING A TABLE RECORDSET (Primarily used to overwrite parts of the serialized array with \$_SESSION vars and application specific logic)\n*/";}
+					
+					$functions .= "\n\nif(!function_exists('pre_process_load_".$this->cleanTableNames($tableHash)."')){\nfunction pre_process_load_".$this->cleanTableNames($tableHash)."(\$pointer){\n\t";
+					
+					if ($showComments) { $functions .= "//--add your custom logic here such as changing \$pointer[TABLE_CONFIG][OBJECT_READ_FILTER] with a dynamic where clause or \$pointer['fieldname_config']['VALUE'] for overriding values or any attributes possible in the config array ";	}
+					
+					$functions .= "\n\treturn \$pointer;\n}\n}\n\n";
+					
+					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE INSERTING A RECORD\n*/ ";	}
+					
+					$functions .= "\n\nif(!function_exists('pre_process_load_".$this->cleanTableNames($tableHash)."')){\nfunction new_pre_process_".$this->cleanTableNames($tableHash)."(){\n\t";
+					
+					if ($showComments) { $functions .= "//--add your custom logic here before inserting a record in $tableHash -- return false if not wanting to add new ";	}
+					
+					$functions .= "\n\treturn true;\n}\n}\n\n";
+					
+					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." POST PROCESSES AFTER INSERTING A RECORD\n*/ ";	}
+					
+					$functions .= "\n\nif(!function_exists('new_post_process_".$this->cleanTableNames($tableHash)."')){\nfunction new_post_process_".$this->cleanTableNames($tableHash)."(){\n\t";
+					
+					if ($showComments) { $functions .= "//--add your custom logic here after inserting a record in $tableHash ";	}
+					
+					$functions .= "\n\treturn true;\n}\n}\n\n";
+					
+					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE UPDATING A RECORD\n*/ ";	}
+					
+					$functions .= "\n\nif(!function_exists('update_pre_process_".$this->cleanTableNames($tableHash)."')){\nfunction update_pre_process_".$this->cleanTableNames($tableHash)."(){";
+					
+					if ($showComments) { $functions .= "\n\t//--add your custom logic here before updating a record in  $tableHash -- return false if not wanting to update the record because of logical checks ";	}
+					
+					$functions .= "\n\treturn true;\n}\n}\n\n";
+					
+					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." POST PROCESSES AFTER UPDATING A RECORD\n*/ ";	}
+					
+					$functions .= "\n\nif(!function_exists('update_post_process_".$this->cleanTableNames($tableHash)."')){\nfunction update_post_process_".$this->cleanTableNames($tableHash)."(){";
+					
+					if ($showComments) { $functions .= "\n\t//--add your custom logic here after updating a record in $tableHash ";	}
+					
+					$functions .= "\n\treturn true;\n}\n}\n\n";
+					
+					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE DELETING A RECORD\n*/ ";	}
+					
+					$functions .= "\n\nif(!function_exists('delete_pre_process_".$this->cleanTableNames($tableHash)."')){\nfunction delete_pre_process_".$this->cleanTableNames($tableHash)."(){";
+					
+					if ($showComments) { $functions .= "\n\t//--add your custom logic here before deleing a record in  $tableHash -- return false if not wanting to delete the record based on logic you add ";	}
+					
+					$functions .= "\n\treturn true;\n}\n}\n\n";
+					
+					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." POST PROCESSES AFTER DELETING A RECORD\n*/ ";	}
+					
+					$functions .= "\n\nif(!function_exists('delete_post_process_".$this->cleanTableNames($tableHash)."')){\nfunction delete_post_process_".$this->cleanTableNames($tableHash)."(){";
+					
+					if ($showComments) { $functions .= "\n\t//--add your custom logic here after deleing a record in $tableHash ";	}
+					
+					$functions .= "\n\treturn true;\n}\n}\n\n";
 				}
 				$drawFunctions .= "\$crudAdmin->paintGroups();\n\n";
 				$functions .= "\n\n?>";
@@ -1941,12 +1993,11 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				} else {
 					$this->writeFile($this->functionsFile.".new.php",$functions);
 				}
-			
 				$this->writeFile($this->functionsDrawFile,$drawFunctions);
 				$this->currentAdminDB['crud']['drawfile_mtime'] = filemtime($this->functionsFile); 
 				$this->writeAdminDB();
 				if ($_GET['mode'] != 'edit' ) {
-					if (isset($_COOKIE['redirect'])) {
+					if (!isset($_COOKIE['redirect'])) {
 						header("Location: ".$_SERVER['PHP_SELF']."?admin=1&select_groups");
 					} else {
 						header("Location: ".$_COOKIE['redirect']);
@@ -2437,7 +2488,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			}
 			
 			$this->writeAdminDB();
-			if (isset($_COOKIE['redirect'])) {
+			if (!isset($_COOKIE['redirect'])) {
 				header("Location: ".$_SERVER['PHP_SELF']);
 			} else {
 				header("Location: ".$_COOKIE['redirect']);
@@ -2742,12 +2793,12 @@ EOD;
 	
 	function storeRolesSelectionForm() {
 		if ($this->currentAdminDB['crud']['completed_step'] != 'All') {
-			$this->currentAdminDB['crud']['completed_step'] = 6;
+			$this->currentAdminDB['crud']['completed_step'] = 5;
 		}
 		ob_end_clean();
 		$this->currentAdminDB['crud']['roles'] = $_POST['role'];      
 		$this->writeAdminDB();
-		if (isset($_COOKIE['redirect'])) {
+		if (!isset($_COOKIE['redirect'])) {
 			header("Location: ".$_SERVER['PHP_SELF']."?admin=1&select_users");
 		} else {
 			header("Location: ".$_COOKIE['redirect']);
@@ -2837,7 +2888,7 @@ EOD;
 	
 	function storeUserSelectionForm() {
 		if ($this->currentAdminDB['crud']['completed_step'] != 'All') {
-			$this->currentAdminDB['crud']['completed_step'] = 7;
+			$this->currentAdminDB['crud']['completed_step'] = 6;
 		}
 		ob_end_clean();
 		$this->currentAdminDB['crud']['users'] = $_POST['user'];      
@@ -2939,21 +2990,24 @@ EOD;
 			$array = $this->processAssociativeArray($this->currentAdminDB,"\$assocArray[\$n] = stripslashes(\$v);");
 		}
 		$data = serialize($this->currentAdminDB);
-		if (!$handle = fopen($this->adminFile, 'w')) {
-			$this->handleErrors("Cannot open file ($this->adminFile)");
+		if (!$handle = @fopen($this->adminFile, 'w')) {
+			@chmod(getcwd(),'755');
+			if (!$handle = @fopen($this->adminFile, 'w')) {
+				$this->handleErrors("Cannot open file ($this->adminFile)","fatal");
+			}
 		}
 		if (fwrite($handle, $data) === FALSE) {
-			$this->handleErrors("Could not write to file");
+			$this->handleErrors("Could not write to file","fatal");
 		}
 		fclose($handle);
 	}
 	 
 	function writeFile($file,$data) {
-		if (!$handle = fopen($file, 'w')) {
-			$this->handleErrors("Cannot open file ($this->adminFile)");
+		if (!$handle = @fopen($file, 'w')) {
+			$this->handleErrors("Cannot open file ($this->adminFile)","fatal");
 		}
 		if (fwrite($handle, $data) === FALSE) {
-			$this->handleErrors("Could not write to file");
+			$this->handleErrors("Could not write to file","fatal");
 		}
 		fclose($handle);   
 	}

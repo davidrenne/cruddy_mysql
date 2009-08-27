@@ -20,6 +20,7 @@ ob_start();
 $crudAdmin = new cruddyMysqlAdmin();
 if (!$crudAdmin->adminDBExists()) {
 	if (!isset($_GET['admin'])) {
+		setcookie("redirect", "0", time()-3600);
 		setcookie("tempAdmin", "1", time()+3600*24*7);
 		header("Location: ".$_SERVER['PHP_SELF']."?admin=true&initialize_server=true");
 		exit;
