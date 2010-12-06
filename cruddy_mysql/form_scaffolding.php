@@ -1,7 +1,7 @@
 <?php
 /*
  *
- * @(#) $Id: form_scaffolding.php,v 1.38 2009/04/07 09:19:43 mlemos Exp $
+ * @(#) $Id: form_scaffolding.php,v 1.45 2010/05/07 09:30:47 mlemos Exp $
  *
  */
 
@@ -12,7 +12,7 @@ class form_scaffolding_class extends form_custom_class
 	var $error_message_format = '<div style="text-align: center; font-weight: bold">{errormessage}</div>';
 	var $form_header = '';
 	var $form_footer = '';
-	var $page_entries = 0;
+	var $page_entries = 10;
 	var $total_entries = 0;
 	var $page = 1;
 	var $listing_message = 'All entries';
@@ -29,6 +29,7 @@ class form_scaffolding_class extends form_custom_class
 	var $deleted_message = 'The entry was deleted successfully.';
 	var $create_preview_message = 'New entry preview';
 	var $update_preview_message = 'Updated entry preview';
+	var $append_message = '';
 	var $preview_input;
 	var $preview_label = 'Preview';
 	var $save_input;
@@ -47,6 +48,8 @@ class form_scaffolding_class extends form_custom_class
 	var $rows = array();
 	var $listing_style = '';
 	var $listing_class = '';
+	var $listing_spacing = 0;
+	var $listing_padding = 2;
 	var $highlight_row_color = '';
 	var $highlight_row_class = '';
 	var $odd_row_color = '';
@@ -86,6 +89,7 @@ class form_scaffolding_class extends form_custom_class
 	var $ajax_response = 0;
 	var $ajax_message = array();
 	var $loaded = 0;
+	var $update_inputs = array();
 
 	Function GeneratePagination(&$form)
 	{
@@ -173,7 +177,7 @@ class form_scaffolding_class extends form_custom_class
 		$ro = $this->rows;
 		$co = $this->columns;
 		$tc = count($co);
-		$listing = '<table'.(strlen($this->listing_class) ? ' class="'.$this->listing_class.'"' : '').''.(strlen($this->listing_style) ? ' style="'.$this->listing_style.'"' : '').">\n<tr>\n";
+		$listing = '<table'.(strlen($this->listing_class) ? ' class="'.HtmlSpecialChars($this->listing_class).'"' : '').(strlen($this->listing_style) ? ' style="'.HtmlSpecialChars($this->listing_style).'"' : '').(IsSet($this->listing_spacing) ? ' cellspacing="'.HtmlSpecialChars($this->listing_spacing).'"' : '').(IsSet($this->listing_padding) ? ' cellpadding="'.HtmlSpecialChars($this->listing_padding).'"' : '').">\n<tr>\n";
 		for($style = array(), $c = 0; $c < $tc; ++$c)
 		{
 			$style[$c] = (IsSet($co[$c]['Style']) ? ' style="'.HtmlSpecialChars($co[$c]['Style']).'"' : '').(IsSet($co[$c]['Class']) ? ' class="'.HtmlSpecialChars($co[$c]['Class']).'"' : '');
@@ -198,6 +202,7 @@ class form_scaffolding_class extends form_custom_class
 			for($c = 0; $c < $tc; ++$c)
 			{
 				$listing .= '<td'.$style[$c].'>';
+				$d = (IsSet($co[$c]['Column']) ? $co[$c]['Column'] : $c);
 				if($this->view
 				&& IsSet($co[$c]['View']))
 				{
@@ -216,7 +221,9 @@ class form_scaffolding_class extends form_custom_class
 					$id = $co[$c]['Delete'];
 					$data = '<a href="'.HtmlSpecialChars($this->AddActionParameter($form, $this->delete_parameter, IsSet($ro[$r][$id]) ? $ro[$r][$id] : $r)).'">'.HtmlSpecialChars($this->delete_label).'</a>';
 				}
-				elseif(IsSet($co[$c]['Format']))
+				elseif(IsSet($co[$c]['Format'])
+				&& (!IsSet($co[$c]['MapNull'])
+				|| IsSet($ro[$r][$d])))
 				{
 					$data = $co[$c]['Format'];
 					$f = (IsSet($co[$c]['FormatParameters']) ? $co[$c]['FormatParameters'] : array());
@@ -231,6 +238,16 @@ class form_scaffolding_class extends form_custom_class
 							$v = (IsSet($f[$k]['MapNull']) ? $f[$k]['MapNull'] : '');
 						if(IsSet($f[$k]['Map'][$v]))
 							$v = $f[$k]['Map'][$v];
+						if(IsSet($f[$k]['Replace']))
+						{
+							$re = $f[$k]['Replace'];
+							$tre = count($re);
+							for(Reset($re), $e = 0; $e < $tre; Next($re), ++$e)
+							{
+								$ke = Key($re);
+								$v = ereg_replace($ke, $re[$ke], $v);
+							}
+						}
 						if(IsSet($f[$k]['HTML']))
 							$v = HtmlSpecialChars($v);
 						$data = str_replace($k, $v, $data);
@@ -238,13 +255,22 @@ class form_scaffolding_class extends form_custom_class
 				}
 				else
 				{
-					$d = (IsSet($co[$c]['Column']) ? $co[$c]['Column'] : $c);
 					if(IsSet($ro[$r][$d]))
 						$data = $ro[$r][$d];
 					else
 						$data = (IsSet($co[$c]['MapNull']) ? $co[$c]['MapNull'] : '');
 					if(IsSet($co[$c]['Map'][$data]))
 						$data = $co[$c]['Map'][$data];
+					if(IsSet($co[$c]['Replace']))
+					{
+						$re = $co[$c]['Replace'];
+						$tre = count($re);
+						for(Reset($re), $e = 0; $e < $tre; Next($re), ++$e)
+						{
+							$ke = Key($re);
+							$data = ereg_replace($ke, $re[$ke], $data);
+						}
+					}
 					if(IsSet($co[$c]['HTML']))
 						$data = HtmlSpecialChars($data);
 				}
@@ -519,6 +545,10 @@ class form_scaffolding_class extends form_custom_class
 				$this->listing_class = $arguments['ListingClass'];
 			if(IsSet($arguments['ListingStyle']))
 				$this->listing_style = $arguments['ListingStyle'];
+			if(IsSet($arguments['ListingSpacing']))
+				$this->listing_spacing = $arguments['ListingSpacing'];
+			if(IsSet($arguments['ListingPadding']))
+				$this->listing_padding = $arguments['ListingPadding'];
 			if(IsSet($arguments['HighlightRowListingClass']))
 				$this->highlight_row_class = $arguments['HighlightRowListingClass'];
 			if(IsSet($arguments['HighlightRowListingColor']))
@@ -549,6 +579,8 @@ class form_scaffolding_class extends form_custom_class
 				$this->total_entries = $arguments['TotalEntries'];
 			if(IsSet($arguments['PageEntries']))
 				$this->page_entries = $arguments['PageEntries'];
+			if($this->page_entries <= 0)
+				return('it was not specified a valid number of entries to list per page');
 			if(IsSet($arguments['Page']))
 				$this->page = $arguments['Page'];
 			$this->page_parameter = $this->GenerateInputID($form, $this->input, 'page');
@@ -767,6 +799,8 @@ class form_scaffolding_class extends form_custom_class
 		if((IsSet($arguments['Entry'])
 		&& strlen($error = $this->SetInputProperty($form, 'Entry', $arguments['Entry']))))
 			return($error);
+		if(IsSet($arguments['AppendMessage']))
+			$this->append_message = $arguments['AppendMessage'];
 		return('');
 	}
 
@@ -828,7 +862,7 @@ class form_scaffolding_class extends form_custom_class
 				$this->valid_marks['data']['bottompagination'] =
 				$this->valid_marks['data']['returnlink'] = 
 				$this->valid_marks['data']['result'] = '';
-				$this->valid_marks['data']['message'] = ($previewing ? ($creating ? $this->create_preview_message : $this->update_preview_message) : ($creating ? $this->create_message : ($updating ? $this->update_message : $this->delete_message)));
+				$this->valid_marks['data']['message'] = ($previewing ? ($creating ? $this->create_preview_message : $this->update_preview_message) : ($creating ? $this->create_message : ($updating ? $this->update_message : $this->delete_message))).$this->append_message;
 				$this->valid_marks['data']['errormessage'] = $error_message = $this->GetErrorMessage($form);
 				$this->valid_marks['data']['view'] = (($previewing && strlen($error_message) == 0) ? $this->entry_output : '');
 				$this->valid_marks['data']['formheader'] = $this->form_header;
@@ -886,7 +920,7 @@ class form_scaffolding_class extends form_custom_class
 						$message = '';
 						break;
 				}
-				$this->valid_marks['data']['result'] = $message;
+				$this->valid_marks['data']['result'] = $message.$this->append_message;
 				if($viewing)
 				{
 					$this->valid_marks['data']['view'] = $this->entry_output;
@@ -1090,6 +1124,9 @@ class form_scaffolding_class extends form_custom_class
 				case 'viewing':
 					$message['Entry'] = $this->entry;
 					break;
+				case 'listing':
+					$message['Page'] = $this->page;
+					break;
 			}
 			$form->PostMessage($message);
 		}
@@ -1132,6 +1169,8 @@ class form_scaffolding_class extends form_custom_class
 				break;
 
 			case 'PageEntries':
+				if($value <= 0)
+					return('it was not specified a valid number of entries to list per page');
 				$this->page_entries = $value;
 				break;
 
@@ -1201,6 +1240,14 @@ class form_scaffolding_class extends form_custom_class
 
 			case 'UpdatePreviewMessage':
 				$this->update_preview_message = $value;
+				break;
+				
+			case 'UpdateInput':
+				$this->update_inputs[] = $value;
+				break;
+
+			case 'AppendMessage':
+				$this->append_message = $value;
 				break;
 
 			default:
@@ -1310,7 +1357,7 @@ class form_scaffolding_class extends form_custom_class
 					$actions[] = array(
 						'Action'=>'ReplaceContent',
 						'Container'=>$this->message_id,
-						'Content'=>(strcmp($this->state, 'create_previewing') ? $this->update_preview_message : $this->create_preview_message)
+						'Content'=>(strcmp($this->state, 'create_previewing') ? $this->update_preview_message : $this->create_preview_message).$this->append_message
 					);
 					$actions[] = array(
 						'Action'=>'ReplaceContent',
@@ -1359,7 +1406,7 @@ class form_scaffolding_class extends form_custom_class
 					$actions[] = array(
 						'Action'=>'ReplaceContent',
 						'Container'=>$this->message_id,
-						'Content'=>(strcmp($this->state, 'created') ? $this->updated_message : $this->created_message)
+						'Content'=>(strcmp($this->state, 'created') ? $this->updated_message : $this->created_message).$this->append_message
 					);
 					$actions[] = array(
 						'Action'=>'ReplaceContent',
@@ -1384,10 +1431,20 @@ class form_scaffolding_class extends form_custom_class
 					$actions[] = array(
 						'Action'=>'ReplaceContent',
 						'Container'=>$this->message_id,
-						'Content'=>(strcmp($this->state, 'create_canceled') ? (strcmp($this->state, 'delete_canceled') ? $this->update_canceled_message : $this->delete_canceled_message) : $this->create_canceled_message)
+						'Content'=>(strcmp($this->state, 'create_canceled') ? (strcmp($this->state, 'delete_canceled') ? $this->update_canceled_message : $this->delete_canceled_message) : $this->create_canceled_message).$this->append_message
 					);
 					$this->ajax_message['Actions'] = $actions;
 					break;
+			}
+			$ti = count($this->update_inputs);
+			for($i = 0; $i < $ti; ++$i)
+			{
+				$input = $this->update_inputs[$i];
+				$this->ajax_message['Actions'][] = array(
+					'Action'=>'SetInputValue',
+					'Input'=>$input,
+					'Value'=>$form->EncodeJavascriptString($form->GetInputValue($input))
+				);
 			}
 			$this->ajax_message['More'] = (strlen($this->next_state) > 0);
 			if(strlen($error = $form->ReplyMessage($this->ajax_message, $processed)))

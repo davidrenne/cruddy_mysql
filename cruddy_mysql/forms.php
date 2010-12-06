@@ -6,7 +6,7 @@ if(!defined("PHP_LIBRARY_FORMS"))
 /*
  * forms.php
  *
- * @(#) $Header: /home/mlemos/cvsroot/forms/forms.php,v 1.319 2009/04/05 07:27:33 mlemos Exp $
+ * @(#) $Header: /home/mlemos/cvsroot/forms/forms.php,v 1.331 2010/10/05 08:24:27 mlemos Exp $
  *
  * This LICENSE is in the BSD license style.
  *
@@ -390,6 +390,11 @@ class form_custom_class
 		return("");
 	}
 
+	Function GetJavascriptSelectedOption(&$form, $form_object)
+	{
+		return("");
+	}
+
 	Function GetJavascriptSetInputProperty(&$form, $form_object, $property, $value)
 	{
 		return("");
@@ -454,7 +459,7 @@ class form_custom_class
 		if(!IsSet($form->inputs[$to]))
 			return("it was not specified a valid event connection destination input");
 		if(!IsSet($this->connections[$event]))
-			return("form input custom class does not implement the Connect function for action ".$action);
+			return("form input custom class does not implement the Connect function for event ".$event);
 		$this->connections[$event][]=array(
 			"To"=>$to,
 			"Action"=>$action,
@@ -477,6 +482,7 @@ class form_custom_class
 			switch($action)
 			{
 				case 'Focus':
+				case 'Click':
 				case 'MarkValidated':
 					return($form->GetJavascriptConnectionAction($form_object, $from, $this->focus_input, $event, $action, $context, $javascript));
 			}
@@ -1818,7 +1824,7 @@ class form_class
 			for($value="new_value",$pattern=0,Reset($input["ReplacePatterns"]);$pattern<count($input["ReplacePatterns"]);Next($input["ReplacePatterns"]),$pattern++)
 			{
 				$expression=Key($input["ReplacePatterns"]);
-				$replacement=ereg_replace('\\\\([0-9])','$\\1',$input["ReplacePatterns"][$expression]);
+				$replacement=preg_replace('/\\\\([0-9])/','$\\1',$input["ReplacePatterns"][$expression]);
 				$value=$value.".replace(new RegExp(".$this->EscapeJavascriptRegularExpressions($expression).",'g'), ".$this->EncodeJavascriptString($replacement).")";
 			}
 			$onchange.="if(new_value.replace) { new_value=".$value."; } ; ";
@@ -2212,7 +2218,7 @@ class form_class
 			case 'Enable':
 				if($check)
 					$condition=$element.'.disabled || typeof('.$element.'.disabled)==\'boolean\'';
-				$javascript=$element.'.disabled='.(strcmp($action, 'disable') ? 'true' : 'false');
+				$javascript=$element.'.disabled='.(strcmp($action, 'Enable') ? 'true' : 'false');
 				break;
 			case 'MarkValidated':
 				$javascript = $this->ErrorStyleJavascript($input, $element, ';', '', IsSet($this->Invalid[$input]));
@@ -3178,11 +3184,11 @@ class form_class
 					switch($validations[$validation])
 					{
 						case "ValidateAsEmail":
-							if(!eregi($this->email_regular_expression,$value))
+							if(!preg_match('/'.str_replace('/', '\\/', $this->email_regular_expression).'/i',$value))
 								$input_error=(IsSet($input["ValidateAsEmailErrorMessage"]) ? $input["ValidateAsEmailErrorMessage"] : $default_error);
 							break;
 						case "ValidateAsCreditCard":
-							$value=ereg_replace("[- .]","",$value);
+							$value=preg_replace('/[- .]/', '', $value);
 							$len=strlen($value);
 							$check=0;
 							$input_error="";
@@ -3291,7 +3297,7 @@ class form_class
 						case "ValidateRegularExpression":
 							for($r=0; $r<count($input["ValidateRegularExpression"]); $r++)
 							{
-								if(!ereg($input["ValidateRegularExpression"][$r],$value))
+								if(!preg_match('/'.str_replace('/', '\\/', $input["ValidateRegularExpression"][$r]).'/', $value))
 								{
 									$input_error=(IsSet($input["ValidateRegularExpressionErrorMessage"]) ? $input["ValidateRegularExpressionErrorMessage"][$r] : $default_error);
 									break;
@@ -3301,7 +3307,7 @@ class form_class
 						case "ValidateAsNotRegularExpression":
 							for($r=0; $r<count($input["ValidateAsNotRegularExpression"]); $r++)
 							{
-								if(ereg($input["ValidateAsNotRegularExpression"][$r],$value))
+								if(preg_match('/'.str_replace('/', '\\/', $input["ValidateAsNotRegularExpression"][$r]).'/', $value))
 								{
 									$input_error=(IsSet($input["ValidateAsNotRegularExpressionErrorMessage"]) ? $input["ValidateAsNotRegularExpressionErrorMessage"][$r] : $default_error);
 									break;
@@ -3388,7 +3394,7 @@ class form_class
 							break;
 						case "ValidateAsFloat":
 							$float_value=doubleval($value);
-							if(!ereg(IsSet($input["ValidationDecimalPlaces"]) ? str_replace("PLACES", intval($input["ValidationDecimalPlaces"]), $this->decimal_regular_expression) : $this->float_regular_expression,$value)
+							if(!preg_match('/'.str_replace('/', '\\/', IsSet($input["ValidationDecimalPlaces"]) ? str_replace("PLACES", intval($input["ValidationDecimalPlaces"]), $this->decimal_regular_expression) : $this->float_regular_expression).'/', $value)
 							|| (IsSet($input["ValidationLowerLimit"])
 							&& $float_value<$input["ValidationLowerLimit"])
 							|| (IsSet($input["ValidationUpperLimit"])
@@ -3429,7 +3435,10 @@ class form_class
 	Function FlagInvalidInput($input, $error)
 	{
 		if(!IsSet($this->inputs[$input]))
+		{
+			$this->OutputError('it was attempted to flag invalid an inexisting input', $input);
 			return('');
+		}
 		$this->Invalid[$input]=$error;
 		$sub_form=IsSet($this->inputs[$input]['SubForm']) ? $this->inputs[$input]['SubForm'] : '';
 		$this->flagged_inputs[$input]=$sub_form;
@@ -3571,12 +3580,18 @@ class form_class
 					if(GetType($value)=="array")
 					{
 						$checked=0;
-						foreach($value as $item)
+						$tv = count($value);
+						for($v = 0; $v < $tv; ++$v)
 						{
-							if(!strcmp($item,$checkbox_value))
+							if(IsSet($value[$v]))
 							{
-								$checked=1;
-								break;
+								$item = $value[$v];
+								if(GetType($item) == 'string'
+								&& !strcmp($item, $checkbox_value))
+								{
+									$checked=1;
+									break;
+								}
 							}
 						}
 					}
@@ -3732,7 +3747,7 @@ class form_class
 								for($pattern=0,Reset($this->inputs[$input]["ReplacePatterns"]);$pattern<count($this->inputs[$input]["ReplacePatterns"]);Next($this->inputs[$input]["ReplacePatterns"]),$pattern++)
 								{
 									$expression=Key($this->inputs[$input]["ReplacePatterns"]);
-									$value=ereg_replace($expression,$this->inputs[$input]["ReplacePatterns"][$expression],$value);
+									$value=preg_replace('/'.str_replace('/', '\\/', $expression).'/',$this->inputs[$input]['ReplacePatterns'][$expression], $value);
 									$set_value=1;
 								}
 							}
@@ -3866,11 +3881,13 @@ class form_class
 			case "Accessible":
 			case "Capitalization":
 			case "ClientScript":
+			case "LABEL":
 			case "SubForm":
 			case "STYLE":
 			case "CLASS":
 			case "ReadOnlyMark":
 			case "ReadOnlyMarkUnchecked":
+			case "Content":
 				break;
 			case "COLS":
 			case "MAXLENGTH":
@@ -3975,6 +3992,11 @@ class form_class
 
 	Function GetJavascriptInputValue($form_object, $input)
 	{
+		if(!IsSet($this->inputs[$input]))
+		{
+			$this->OutputError("it was not passed a valid input", $input);
+			return("");
+		}
 		switch($this->inputs[$input]["TYPE"])
 		{
 			case "select":
@@ -3993,8 +4015,37 @@ class form_class
 		}
 	}
 
+	Function GetJavascriptSelectedOption($form_object, $input)
+	{
+		if(!IsSet($this->inputs[$input]))
+		{
+			$this->OutputError("it was not passed a valid input", $input);
+			return("");
+		}
+		switch($this->inputs[$input]["TYPE"])
+		{
+			case "select":
+				if(strlen($field=$this->GetJavascriptInputObject($form_object, $input))==0)
+					return("");
+				return($field.".options[".$field.".selectedIndex].text");
+			case "custom":
+				if(strlen($javascript=$this->inputs[$input]["object"]->GetJavascriptSelectedOption($this, $form_object)))
+					return($javascript);
+				$this->OutputError("could not retrieve the Javascript input selected option", $input);
+				return("");
+			default:
+				$this->OutputError("it was not passed a valid selected input option", $input);
+				return("");
+		}
+	}
+
 	Function GetJavascriptSetInputProperty($form_object, $input, $property, $value)
 	{
+		if(!IsSet($this->inputs[$input]))
+		{
+			$this->OutputError('it was not specified a valid input', $input);
+			return("");
+		}
 		switch($this->inputs[$input]["TYPE"])
 		{
 			case "custom":

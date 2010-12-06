@@ -5,8 +5,8 @@ ini_set("memory_limit","256M");
 set_time_limit(0);
 set_magic_quotes_runtime(false); // -- dude just dont use magic quotes...
 function get_microtime_ms() {
-	list($usec, $sec) = explode(" ",microtime()); 
-	return ((float)$usec + (float)$sec); 
+	list($usec, $sec) = explode(" ",microtime());
+	return ((float)$usec + (float)$sec);
 }
 /* constants */
 
@@ -19,25 +19,27 @@ define("TABLE_CONFIG","tableDef");
 define("CRUD_FIELD_CONFIG","crudConfig");
 
 // table level keys and configs
-define("OBJECT_DESC","objdesc"); //high level table description (Keep short)
-define("OBJECT_ACTIONS","objactions"); //array of possible CRUD actions used in switch of controller page
-define("OBJECT_DEFAULT_ORDER","objdeforder"); //for a generic_read function to handle how the records should be initially sorted
-define("OBJECT_READ_FILTER","objwhere"); //initial filter that the main recordset loads as
-define("OBJECT_HIDE_NEW_LINK","objnewlink"); //a flag to say whether the table should have a "New" link associated with it
-define("OBJECT_HIDE_VIEW_LINK","objviewlink"); //a flag to say whether the table should have a "New" link associated with it
-define("OBJECT_DELETE_CHECK_CONSTRAINTS","objdel"); //by default the crud class will loop through all tables and fields and if it finds an identical fieldname in any table in the database and there are records in that table, it will tell the user they cannot delete the only way to bypass this constraint is by setting this to false
-define("OBJECT_TABLE","objtable");//table name
-define("OBJECT_CONNECTION_STRING","objconnection");//dba connection string
-define("OBJECT_PK","objpk");//primary key hard coded
-define("OBJECT_FILTER_DESC","objfilterdesc");//used when you want to describe what the data is filtered by inside your controller function
-define("OBJECT_PAGING","objpaging");//by default paging is enabled unless you say false here. paging is defaulted to 10 records per page but just need to add new configuration here when needing new functionality
-define("OBJECT_PAGING_NUM_ROWS_PER_PAGE","objpagingrows");
-define("OBJECT_PAGING_SCROLL","objpagingscroll");
+define("OBJECT_DESC","description"); //high level table description (Keep short)
+define("OBJECT_ACTIONS","actions"); //array of possible CRUD actions used in switch of controller page
+define("OBJECT_DEFAULT_ORDER","defaultorder"); //for a generic_read function to handle how the records should be initially sorted
+define("OBJECT_READ_FILTER","filterrecords"); //initial filter that the main recordset loads as
+define("OBJECT_HIDE_NEW_LINK","hidenewlink"); //a flag to say whether the table should have a "New" link associated with it
+define("OBJECT_HIDE_VIEW_LINK","hideviewlink"); //a flag to say whether the table should have a "New" link associated with it
+define("OBJECT_HIDE_DETAILS_LINK","hidedetailslink");
+define("OBJECT_HIDE_EDIT_LINK","hideeditlink");
+define("OBJECT_HIDE_DELETE_LINK","hidedeletelink");
+define("OBJECT_DELETE_CHECK_CONSTRAINTS","objdeleteconstraints"); //by default the crud class will loop through all tables and fields and if it finds an identical fieldname in any table in the database and there are records in that table, it will tell the user they cannot delete the only way to bypass this constraint is by setting this to false
+define("OBJECT_TABLE","table");//table name
+define("OBJECT_CONNECTION_STRING","connection");//dba connection string
+define("OBJECT_PK","primarykey");//primary key hard coded
+define("OBJECT_FILTER_DESC","filterrecordsdescription");//used when you want to describe what the data is filtered by inside your controller function
+define("OBJECT_PAGING","pagingenabled");//by default paging is enabled unless you say false here. paging is defaulted to 10 records per page but just need to add new configuration here when needing new functionality
+define("OBJECT_PAGING_NUM_ROWS_PER_PAGE","pagingrows");
+define("OBJECT_PAGING_SCROLL","pagingscroll");
 define("OTHER_OBJECTS", "otherobjects" );//otherobjects allows you to build supporting form objects that will be tacked on at the end of the form before the button to post/update
 
-define("REQUIRED_TEXT","requiredText");
+define("REQUIRED_TEXT","requiredtext");
 define("OTHER_LINKS", "otherlinks" );
-define("OBJECT_HIDE_DETAILS_LINK","detailslink");
 define("EDIT_TEXT","edittext");
 define("DELETE_TEXT","deletetext");
 define("EDIT_LINK", "editlink");
@@ -46,19 +48,20 @@ define("DELETE_LINK", "deletelink");
 // field level keys and configs
 
 define("CAPTION","caption"); // what the user sees as the field name
+
 //these array keys/configurations are for the foreign key lookups definied at the field level
-define("ID","id");
-define("TEXT", "text");
-define("TABLE", "table" );
-define("WHERE", "where" );
+define("ID","lookupid");
+define("TEXT", "lookuptext");
+define("TABLE", "lookuptable" );
+define("WHERE", "lookupwhere" );
 define("SELECT","select");
 
-define("SHOWCOLUMN","showc");
+define("SHOWCOLUMN","showcolumn");
 define("COLUMNPOSTTEXT","posttextc");
 define("SORTABLE","sortable");
 define("PRETEXTREAD","pretext");
 define("POSTTEXTREAD","posttext");
-define("REQUIRED","notreq");
+define("REQUIRED","required");
 define("UPDATE_READ_ONLY","ronlyupdate");
 define("HIDE","inserthide");
 
@@ -71,10 +74,10 @@ define("INPUT_SUBMIT","submitas2d1as32d1as2d1a3s21d3a2s13");
 
 
 class cruddyMysql {
-	
+
 	function cruddyMysql($str,$table,$info=array()) {
 		$pwd = dirname(__FILE__);
-		$this->table = $table;
+		$this->table = $info[TABLE_CONFIG][OBJECT_TABLE];
 		$this->conn = $str;
 		$this->dba = new dbal($str);
 		$this->dba->setCacheDir( "${pwd}/cache/" );
@@ -89,12 +92,16 @@ class cruddyMysql {
 		$info =  &$this->formParams;
 		$definitions = &$this->tableDefinition;
 
-		if (stristr($filter,'=') || stristr($filter,'IN')) {
-			$f = $filter == '' ? '' : ' WHERE '.$filter;
-		} elseif ($filter != '') {
+		if (!empty($filter)) {
+			if ( (stristr($filter,'=') || stristr($filter,'IN')) &&  !stristr($filter,'order by')) {
+				$f = $filter == '' ? '' : ' WHERE '.$filter;
+			} else {
+				$f = $filter;
+			}
+		} else {
 			$f = $filter;
 		}
-		$query = "select count(*) as count from ".$this->table." $f"; 
+		$query = "select count(*) as count from ".$this->table." $f";
 		$result = @mysql_query($query,$dba->dbm->dbh);
 		if ($result) {
 			$row = mysql_fetch_array($result);
@@ -105,7 +112,7 @@ class cruddyMysql {
 		$scroll_page = ($definitions[TABLE_CONFIG][OBJECT_PAGING_NUM_ROWS_PER_PAGE]) ? $definitions[TABLE_CONFIG][OBJECT_PAGING_SCROLL] : 5 ;
 		$per_page = ($definitions[TABLE_CONFIG][OBJECT_PAGING_NUM_ROWS_PER_PAGE]) ? $definitions[TABLE_CONFIG][OBJECT_PAGING_NUM_ROWS_PER_PAGE] : 10 ;
 		$current_page = $_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['page']];
-		$pager_url = $_SERVER['PHP_SELF']."?action=".$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['read'].$this->object_key.'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_field'].'='.$_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_field']].'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_direction'].'='.$_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_direction']].'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['page'].'=';
+		$pager_url = $_SERVER['PHP_SELF']."?action=".strtolower($definitions[TABLE_CONFIG][OBJECT_ACTIONS]['read'].$this->object_key).'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_field'].'='.$_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_field']].'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_direction'].'='.$_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_direction']].'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['page'].'=';
 		$inactive_page_tag = 'id="current_page"';
 		$previous_page_text = '&lt; Previous';
 		$next_page_text = 'Next &gt;';
@@ -115,20 +122,20 @@ class cruddyMysql {
 		$crudPage->pager_set($pager_url, $total_records, $scroll_page, $per_page, $current_page, $inactive_page_tag, $previous_page_text, $next_page_text, $first_page_text, $last_page_text,'');
 		$result = mysql_query(str_replace("count(*) as count","*",$query)." LIMIT ".$crudPage->start.", ".$crudPage->per_page."",$dba->dbm->dbh);
 		$definitions[TABLE_CONFIG][OBJECT_PAGING] =  $crudPage;
-		
+
 		if ($result) {
 			while ($row = mysql_fetch_assoc($result)) {
 				$res[] = $row;
 			}
 		} else {
-			if ($this->cruddyAdministrator) {
+			//if ($this->cruddyAdministrator) {
 				echo ("ERROR: ".$dba->getLastError());
-			}
+			//}
 		}
 		$total = (get_microtime_ms() - $methodStartTime);
 		$this->performance['doQuery'][] = $total ." sql:".$query;
 	}
-	
+
 	/**
 	*  Creates a new row.
 	 *
@@ -136,7 +143,7 @@ class cruddyMysql {
 	 */
 	function create() {
 		$this->getTableInformation(true);
-		return$this->buildGenericForm(array(),false,"");
+		return $this->buildGenericForm(array(),false,"");
 	}
 	/**
 	 * Generic Form
@@ -157,13 +164,12 @@ class cruddyMysql {
 		$form->ErrorMessageSuffix="";
 		foreach($this->formParams as $k => $input)   {
 			if ( is_array($default) && count($default) > 0) {
-				$input["VALUE"] = stripslashes($default[$k]);
+				$input["VALUE"] = $default[$k];
 			}
 			if ($input["NAME"]) {
 				echo $form->AddInput( $input );
 			}
 		}
-
 		$form->LoadInputValues($form->WasSubmitted(INPUT_DOIT));
 
 
@@ -180,11 +186,11 @@ class cruddyMysql {
 
 		if($doit) {
 			$dba  = &$this->dba;
-			
+
 			// -- get a list of fields that the table can take skip anything else in the post
 			$sql  = sprintf(GET_COLUMNS_SQL,$this->table);
 			$record = $dba->query($sql);
-			if ( !$record ) 
+			if ( !$record )
 				return false;
 			$Field     = & $record->bindColumn('Field');
 			while ( $foo=$record->getNext() ) {
@@ -199,32 +205,47 @@ class cruddyMysql {
 					continue;
 				} else {
 					if (strtoupper($v['TYPE']) == 'FILE') {
-						// -- for files, user should be mapping the MIME, MOVE_TO, and SIZE to other fields
 						$form->GetFileValues($k,$userfile_values);
-						$columns[$k] = $k;
-						$values[$k] = $k;
-						$_POST[$k] = $userfile_values["name"];
-						$columns[$v['MIME']] = $v['MIME'];
-						$values[$v['MIME']] = $v['MIME'];
-						$_POST[$v['MIME']] = $userfile_values["type"];
-						$columns[$v['SIZE']] = $v['SIZE'];
-						$values[$v['SIZE']] = $v['SIZE'];
-						$_POST[$v['SIZE']] = $userfile_values["size"];
-						$_POST["tmp_name"] = $userfile_values["tmp_name"];
-						if (isset($v['MOVE_TO'])) {
-							if (@is_uploaded_file($userfile_values["tmp_name"])) {
-								if (substr($v['MOVE_TO'],-1))
-								if (substr($v['MOVE_TO'],-1) != '/' && strtoupper(substr(PHP_OS,0,3)!='WIN')) {
-									$v['MOVE_TO'] .= "/";
-								} elseif (substr($v['MOVE_TO'],-1) != "\\" && strtoupper(substr(PHP_OS,0,3)=='WIN')) {
-									$v['MOVE_TO'] .= "\\";
-								}
-								if (!@move_uploaded_file($userfile_values["tmp_name"], $v['MOVE_TO'].$userfile_values["name"])) {
-									die("File Upload Failed");
-								}
+						if ($userfile_values["name"]) {
+							// -- for files, user should be mapping the MIME, MOVE_TO, and SIZE to other fields
+							$columns[$k] = $k;
+							$values[$k] = $k;
+							$_POST[$k] = $userfile_values["name"];
+
+							// -- users can store the MIME and FILE_SIZE attributes into a custom field mapping
+							// -- FYI there is no edit facility for MIME/SIZE you must convert your config to an array and manually add them to the $field_name_"config" section of the array
+							// -- MIME is meant to update another field with the MIME type of the fileupload and expects a field name as the value of the key
+							if ($v['MIME']) {
+								$columns[$v['MIME']] = $v['MIME'];
+								$values[$v['MIME']] = $v['MIME'];
+								$_POST[$v['MIME']] = $userfile_values["type"];
 							}
+
+							if ($v['FILE_SIZE']) {
+								$columns[$v['FILE_SIZE']] = $v['FILE_SIZE'];
+								$values[$v['FILE_SIZE']] = $v['FILE_SIZE'];
+								$_POST[$v['FILE_SIZE']] = $userfile_values["size"];
+							}
+
+							if (isset($v['MOVE_TO'])) {
+								if (@is_uploaded_file($userfile_values["tmp_name"])) {
+									if (substr($v['MOVE_TO'],-1))
+									if (substr($v['MOVE_TO'],-1) != '/' && strtoupper(substr(PHP_OS,0,3)!='WIN')) {
+										$v['MOVE_TO'] .= "/";
+									} elseif (substr($v['MOVE_TO'],-1) != "\\" && strtoupper(substr(PHP_OS,0,3)=='WIN')) {
+										$v['MOVE_TO'] .= "\\";
+									}
+									if (!@move_uploaded_file($userfile_values["tmp_name"], $v['MOVE_TO'].$userfile_values["name"])) {
+										die("File Upload Failed.  Ensure that {$v['MOVE_TO']} is chmod 777 for new files to overwrite.");
+									}
+								}
+							} else {
+								die("Missing MOVE_TO value to move the file");
+							}
+
+						} else {
+
 						}
-						
 					} elseif (strtoupper($v['CustomClass']) == 'FORM_DATE_CLASS') {
 						$dateValue = $_POST["p_".$k."_year"]."-".$_POST["p_".$k."_month"]."-".$_POST["p_".$k."_day"];
 						if (empty($_POST["p_".$k."_year"]) || empty($_POST["p_".$k."_month"])) {
@@ -245,7 +266,7 @@ class cruddyMysql {
 					}
 				}
 			}
-			
+
 			if ( $update ) {
 				$updatx  = array();
 				foreach($columns as $k=>$v) {
@@ -263,9 +284,9 @@ class cruddyMysql {
 				}
 				$sql = sprintf(INSERT_SQL, $this->table,implode(", ",$columns),":".implode(", :",$values));
 			}
-			
+
 			$dba->compile($sql);
-			
+
 			// -- support multi-value inserts/updates
 			$multi=false;
 			foreach ($_POST as $postKey=>$postValue) {
@@ -276,12 +297,12 @@ class cruddyMysql {
 					$multiArrayKey = $postKey;
 				}
 			}
-			
+
 			if ($cnt != 1 && $multi === true) {
 				$error_message="You can only have 1 multi select for each row.";
 				return false;
 			}
-			
+
 			if ($multi === false ) {
 				$f = $dba->execute($_POST);
 			} else {
@@ -290,7 +311,7 @@ class cruddyMysql {
 					$f = $dba->execute($_POST);
 				}
 			}
-			
+
 			if ( $f ) {
 				if ($update) {
 					return true;
@@ -317,9 +338,9 @@ class cruddyMysql {
 						$error_message = $str;
 						echo $dba->__sql;
 					}
-					
+
 				}
-				
+
 			}
 		}
 		$total = (get_microtime_ms() - $methodStartTime);
@@ -386,7 +407,7 @@ class cruddyMysql {
 						if ($definitions[TABLE_CONFIG][OBJECT_PK] == $Field2) {
 							// -- rules are if you have a table with the same field name and you didnt specify to OBJECT__CHECK_CONSTRAINTS => false
 							if ($definitions[TABLE_CONFIG][OBJECT_DELETE_CHECK_CONSTRAINTS] == 1) {
-								if ($Type == 'BASE TABLE') { 
+								if ($Type == 'BASE TABLE') {
 									foreach($arr as $k=>$v) {
 										if ($k == $Field2) {
 											$valueWhere = $v;
@@ -434,9 +455,11 @@ class cruddyMysql {
 		$info = &$this->formParams;
 		echo "<table>\n";
 		if ( is_array($res) ) {
+			echo "<thead>
+								<tr>";
 			foreach($definitions as $key => $value) {
 				if ( !is_array($value) || $value[SHOWCOLUMN] == 0 || !isset($value[SHOWCOLUMN])) continue;
-				
+
 				// -- if the field doesnt say to NOT sort
 				if ($definitions[TABLE_CONFIG][SORTABLE] == 1 || !isset($definitions[TABLE_CONFIG][SORTABLE])) {
 					if ($_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_direction']] == 'ASC') {
@@ -446,7 +469,7 @@ class cruddyMysql {
 						$direction = 'ASC';
 						$directionAscii = '&uarr;';
 					}
-					
+
 					// -- only set direction arrow if on current field
 					if (strtoupper($_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_field']]) == strtoupper($key)) {
 						if ($_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_direction']] == 'ASC') {
@@ -457,28 +480,41 @@ class cruddyMysql {
 					} else {
 						$directionAscii = '';
 					}
-					
+
 					if (!empty($_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['page']])) {
 						$direction .= '&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['page'].'='.$_GET[$definitions[OBJECT_ACTIONS]['page']];
 					}
-					
-					$sortLinkStart = "<a href='?action=".$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['read'].$this->object_key.'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_field'].'='.$key.'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_direction'].'='.$direction."'>$directionAscii";	
+
+					$sortLinkStart = "<a href='?action=".strtolower($definitions[TABLE_CONFIG][OBJECT_ACTIONS]['read'].$this->object_key).'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_field'].'='.$key.'&'.$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_direction'].'='.$direction;
+					if ($this->defaultConfigOverRide) {
+						$sortLinkStart .= "&conf=$this->current_config";
+					}
+					$sortLinkStart .= "'>$directionAscii";
 					$sortLinkEnd = "</a>";
 				}
 				echo "      <th>".$sortLinkStart.$value[CAPTION].$sortLinkEnd."</th>\n";
 				$sortLinkStart = $sortLinkEnd = '';
 			}
-			
+
+			echo "</tr>
+								</thead>";
 			foreach($res as $k => $r) {
 				$pagedResults = (array)$r;
 				echo "   <tr>\n";
-				
+
 				$edit_url = $definitions[TABLE_CONFIG][EDIT_LINK];
 				$del_url  = $definitions[TABLE_CONFIG][DELETE_LINK];
 
+				if ($definitions[TABLE_CONFIG][OBJECT_HIDE_EDIT_LINK] == 1) {
+					$edit_url = "";
+				}
+				if ($definitions[TABLE_CONFIG][OBJECT_HIDE_DELETE_LINK] == 1) {
+					$del_url = "";
+				}
+
 				foreach($pagedResults as $k2 => $v2) {
-					$edit_url = str_replace('%'.$k2.'%', $v2,  rawurldecode($edit_url));
-					$del_url  = str_replace('%'.$k2.'%', $v2,  rawurldecode($del_url));
+					$edit_url = str_replace('%'.$k2.'%', $v2,  $edit_url);
+					$del_url  = str_replace('%'.$k2.'%', $v2,  $del_url);
 				}
 				$count=0;
 				foreach($definitions as $k => $v) {
@@ -505,11 +541,15 @@ class cruddyMysql {
 					}
 					if (empty($text) && $text !=='0') {
 						 $text .= "<span style='color:#EBEBEB'>(No ".$v[CAPTION].")</span>";
-					} 
+					}
 
 					$linkStart = $linkEnd = "";
 					if ($definitions[TABLE_CONFIG][OBJECT_HIDE_DETAILS_LINK] == 0 && $count == 1) {
-						$linkStart = "<a href='".str_replace("update_","view_",$edit_url)."'>";
+						$linkStart  = "<a href='".str_replace("update_","view_",$edit_url);
+						if ($this->defaultConfigOverRide) {
+							$linkStart .= "&conf=$this->current_config";
+						}
+						$linkStart .= "'>";
 						$linkEnd = "</a>";
 					}
 
@@ -520,11 +560,17 @@ class cruddyMysql {
 
 				}
 
-				if (!empty($definitions[TABLE_CONFIG][EDIT_TEXT])) {
-					$edit = '<a title="Edit this '.$definitions[TABLE_CONFIG][OBJECT_DESC].'" href="'.$edit_url.'">'.$definitions[TABLE_CONFIG][EDIT_TEXT].'</a> - ';
+				if (!empty($edit_url)) {
+					$edTxt = ($definitions[TABLE_CONFIG][EDIT_TEXT]) ? $definitions[TABLE_CONFIG][EDIT_TEXT] : 'Edit';
+					$edit = '<a title="Edit this '.$definitions[TABLE_CONFIG][OBJECT_DESC].'" href="'.$edit_url;
+					if ($this->defaultConfigOverRide) {
+						$linkStart .= "&conf=$this->current_config";
+					}
+					$edit .= '">'.$edTxt.'</a> - ';
 				}
-				if (!empty($definitions[TABLE_CONFIG][DELETE_TEXT])) {
-					$delete = '<a title="Delete this '.$definitions[TABLE_CONFIG][OBJECT_DESC].'" href="javascript:if(window.confirm(\'Are you sure you wish to delete this '.$this->object_name.'?\')){document.location=\''.$del_url.'\';}">'.$definitions[TABLE_CONFIG][DELETE_TEXT].'</a>';
+				if (!empty($del_url)) {
+					$delTxt = ($definitions[TABLE_CONFIG][DELETE_TEXT]) ? $definitions[TABLE_CONFIG][DELETE_TEXT] : "Delete";
+					$delete = '<a title="Delete this '.$definitions[TABLE_CONFIG][OBJECT_DESC].'" href="javascript:if(window.confirm(\'Are you sure you wish to delete this '.$this->object_name.'?\')){document.location=\''.$del_url.'\';}">'.$delTxt.'</a>';
 				}
 				if (is_array($definitions[TABLE_CONFIG][OTHER_LINKS])) {
 					$other = '';
@@ -538,7 +584,7 @@ class cruddyMysql {
 				}
 				echo '<td><nobr>'.$edit.$delete.$other.'</nobr></td>'."\n";
 				echo "   </tr>\n";
-			} 
+			}
 		} else {
 			echo "<tr> \n";
 			echo "<td><h2>No ".$definitions[TABLE_CONFIG][OBJECT_DESC]."'s found.</h2></td>";
@@ -556,7 +602,7 @@ class cruddyMysql {
 		$this->performance['readGeneric'][] = (get_microtime_ms() - $methodStartTime);
 
 		echo '</p>';
-		
+
 	}
 
 	/**
@@ -595,23 +641,23 @@ class cruddyMysql {
 					echo "<tr style=\"display:none;\">\n";
 				} else {
 					echo "<tr>\n";
-				}            
+				}
 				echo "<th align=\"right\">";
 				echo $form->AddLabelPart(array("FOR"=>$inpName));
-				echo ":  ".($def[$inpName][COLUMNPOSTTEXT]) ? $def[$inpName][COLUMNPOSTTEXT] : ""."</th>\n";
+				echo ": </th>\n";
 				echo "<td>";
-				
+
 				if ( isset($def[$inpName][UPDATE_READ_ONLY]) && $def[$inpName][UPDATE_READ_ONLY] || $readOnly === true) {
 					$form->AddInputReadOnlyPart( $inpName );
 				} else {
 					$form->AddInputPart($inpName);
 				}
-				echo "</td>\n";
+				echo $def[$inpName][COLUMNPOSTTEXT]."</td>\n";
 				echo "<td>". (IsSet($verify[$inpName]) ? "[Verify]" : "")."</td>\n";
 				echo "</tr>\n";
 			}
 		}
-		
+
 		if ( isset($def[TABLE_CONFIG][OTHER_OBJECTS]) && is_array($def[TABLE_CONFIG][OTHER_OBJECTS])) {
 			// -- for now additional elements draw right before the input box
 			foreach ($def[TABLE_CONFIG][OTHER_OBJECTS] as $key=>$value) {
@@ -646,7 +692,7 @@ class cruddyMysql {
 		$total = (get_microtime_ms() - $methodStartTime);
 		$this->performance['autoTemplate'][] = $total;
 	}
-	
+
 	/**
 	 *  Get information about the table
 	 *
@@ -662,9 +708,9 @@ class cruddyMysql {
 		$sql  = sprintf(GET_COLUMNS_SQL,$this->table);
 		$record = $dba->query($sql);
 
-		if ( !$record ) 
+		if ( !$record )
 			return false;
-		
+
 		$Field     = & $record->bindColumn('Field');
 		$Type      = & $record->bindColumn('Type');
 		$Null      = & $record->bindColumn('Null');
@@ -681,10 +727,10 @@ class cruddyMysql {
 				$actInfo[TEXT] = trim($value);
 			}
 			$actInfoFormOverRides = & $info[$Field."_config"];
-		
+
 			/* reseting form information */
 			$form = array();
-			
+
 			if ($Extra == 'auto_increment') {
 				continue;
 			}
@@ -701,34 +747,39 @@ class cruddyMysql {
 			$autoType = $this->parseColumnInfo($Type,$foo['Default'],$Field);
 			$form["NAME"] = trim($Field);
 			$form["ID"] = $form["NAME"];
-			
+
 			// -- if table is configured as not null then user has to enter something
 			/*if (strtoupper($Null) == 'NO') {
 				 $form["ValidateAsNotEmpty"] = 1;
 			}*/
-			
+
 			// -- if developer tells class that the field is non-required then set dont set as required
-			if($actInfo[REQUIRED] == 0 && isset($actInfo[REQUIRED])) {
-				 $form["ValidateAsNotEmpty"] = 1;
+			if($actInfo[REQUIRED] == 1 && isset($actInfo[REQUIRED])) {
+				$form["ValidateAsNotEmpty"] = 1;
 				$form["Optional"] = false;
-				 $form["LABEL"] .="<span class='required'>".$info[TABLE_CONFIG][REQUIRED_TEXT]."</span>";
+				$form["LABEL"] .="<span class='required'>".$info[TABLE_CONFIG][REQUIRED_TEXT]."</span>";
 			} else {
 				$form["Optional"] = true;
 				 unset($form["ValidateAsNotEmpty"]);
 			}
-			
+
 			$form["LABEL"] = isset($actInfo[CAPTION]) ? $actInfo[CAPTION] : $Field;
-			if (isset($actInfo[TABLE]) && isset($actInfo[ID]) && isset($actInfo[TEXT]) && $insert == true) {
+			if (isset($actInfo[TABLE]) && isset($actInfo[ID]) && isset($actInfo[TEXT])) {
 				$form["TYPE"] = "select";
 				$opt = & $form["OPTIONS"];
 				if (isset($actInfo[WHERE])) {
 					$where = " where ".$actInfo[WHERE]." order by ".$actInfo[TEXT]." ASC";
 				}
-				$rec1 = $dba->query("select ".$actInfo[ID].",".$actInfo[TEXT]." from ".$actInfo[TABLE].$where);
+				if (substr($actInfo[ID],0,23) == '___distinct___lookup___' || substr($actInfo[TEXT],0,23) == '___distinct___lookup___') {
+					$distinct = "distinct";
+					$actInfo[ID] = substr($actInfo[ID],23);
+					$actInfo[TEXT] = substr($actInfo[TEXT],23);
+				}
+				$rec1 = $dba->query("select ".$distinct." ".$actInfo[ID].",".$actInfo[TEXT]." from ".$actInfo[TABLE].$where);
 				if ( !$rec1 ) {
 					continue;
 				}
-				//@ToDo - say couldnt join if admin 
+				//@ToDo - say couldnt join if admin
 				$opt[""] = "Select a : ".$form["LABEL"];
 
 				while ( $f = $rec1->getNext() ) {
@@ -753,7 +804,7 @@ class cruddyMysql {
 				$form["TYPE"] = $autoType["TYPE"];
 			}
 			$form["ValidationErrorMessage"] = "'".$form["LABEL"]."' is required.";
-			
+
 			if (is_array($autoType)) {
 				foreach ($autoType as $autoTypeKey=>$autoTypeVal) {
 					if (!isset($form[$autoTypeKey])) {
@@ -772,7 +823,7 @@ class cruddyMysql {
 					$form[$option] = $optionValue;
 				 }
 			}
-			
+
 			if (isset($form['ValidateAsURL'])) {
 				unset($form['ValidateAsURL']);
 				$form["ReplacePatterns"] =  array(
@@ -786,11 +837,11 @@ class cruddyMysql {
 
 											"^(http|https)://(([-!#\$%&'*+.0-9=?A-Z^_`a-z{|}~]+\.)+[A-Za-z]{2,6}(:[0-9]+)?)\$"=>"\\1://\\2/"
 											);
-											
+
 				$form["ValidateRegularExpression"] = '^(http|https)\://(([-!#\$%&\'*+.0-9=?A-Z^_`a-z{|}~]+\.)+[A-Za-z]{2,6})(\:[0-9]+)?(/)?/';
 				$form["ValidationErrorMessage"]    = (!isset($form["ValidateAsURLErrorMessage"])) ? "This is not a valid URL" : $form["ValidateAsURLErrorMessage"];;
 			}
-			
+
 			if ($actInfoFormOverRides['TYPE'] == 'select_multi') {
 				$form["TYPE"] = "select";
 				$form["SIZE"] = "8";
@@ -798,7 +849,7 @@ class cruddyMysql {
 				$form["ValidateOnlyOnClientSide"] = true;
 				$form["ExtraAttributes"] = array("multiple"=>"multiple");
 			}
-						
+
 			if ($form['TYPE'] == 'wysiwyg' || $actInfoFormOverRides['TYPE'] == 'wysiwyg') {
 				unset($form['TYPE']);
 				require_once("form_FCKEditor.php");
@@ -832,15 +883,15 @@ class cruddyMysql {
 													"12"=>"December"
 												);
 			}
-			
+
 			if (!isset($form["STYLE"]) && $form['TYPE'] == 'textarea') {
-				$form["STYLE"] = "WIDTH:500px;HEIGHT:250px;";	
+				$form["STYLE"] = "WIDTH:500px;HEIGHT:250px;";
 			}
-			
+
 			if ($form['TYPE'] == 'select' && $actInfoFormOverRides['TYPE'] != 'select_multi' && isset($form['SIZE'])) {
 				unset($form['SIZE']);
 			}
-			
+
 			$formParams[$Field] = $form;
 		}
 		if ( isset($info[TABLE_CONFIG][OTHER_OBJECTS]) && is_array($info[TABLE_CONFIG][OTHER_OBJECTS]) ) {
@@ -854,7 +905,7 @@ class cruddyMysql {
 		$formParams[INPUT_SUBMIT] = $this->button;
 		$this->performance['getTableInfo'][] = (get_microtime_ms() - $methodStartTime);
 	}
-	
+
 	/**
 	 *  Analyze the column type, parse it, and return
 	 *  to the class for prepare the form.
@@ -966,7 +1017,7 @@ class cruddyMysql {
 						case "'":
 						case '"':
 							$end = $extra[$i++];
-							
+
 							for(;$i < $max && $extra[$i] != $end; $i++) {
 								if ( $extra[$i] == "\\") {
 									$buf .= $extra[$i+1];
@@ -995,23 +1046,25 @@ class cruddyMysql {
 }
 
 class cruddyMysqlAdmin extends cruddyMysql {
-	 
+
 	function cruddyMysqlAdmin() {
 		if (strtoupper(substr(PHP_OS,0,3)=='WIN')) {
-			$this->isWindows = true;    
-			$this->systemDirectorySeparator = '\\';    
+			$this->isWindows = true;
+			$this->systemDirectorySeparator = '\\';
 		} else {
-				$this->isWindows = false;    
-				$this->systemDirectorySeparator = '/';    
+			$this->isWindows = false;
+			$this->systemDirectorySeparator = '/';
 		}
-		 
+
+		$this->paintedHead = false;
 		$this->adminFile = getcwd().$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME'].".config.php";
 		$this->functionsFile = getcwd().$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME'].".custom.functions.php";
 		$this->functionsDrawFile = getcwd().$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME'].".draw.functions.php";
+		$this->databaseConnectionFile = getcwd().$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME'].".connections.php";
 		if ($this->adminDBExists()) {
 			$this->currentAdminDB = $this->readAdminDB();
 		}
-		
+
 		$this->steps[1] = 'initialize_server';
 		$this->steps[2] = 'select_database';
 		$this->steps[3] = 'select_tables';
@@ -1019,8 +1072,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->steps[5] = 'select_roles';
 		$this->steps[6] = 'select_users';
 		$this->steps[7] = 'select_theme';
-		
-		$this->cruddyAdministrator = $this->currentAdminDB['crud']['roles'][$_COOKIE['current_role']]['admin_role'];
+
+		$this->cruddyAdministrator = (isset($_COOKIE['current_role'])) ? $this->currentAdminDB['crud']['roles'][$_COOKIE['current_role']]['admin_role'] : false;
 		$this->dateTime = date("Y-m-j H:i:s");
 
 		// -- update these to whayou want your get string to look like  with concatenated TABLE by the time the user clicks
@@ -1033,11 +1086,13 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->actionTypes['order_field'] = "sort_by"; // no additional
 		$this->actionTypes['order_direction'] = "direction"; // no additional
 		$this->actionTypes['page'] = "page"; // no additional
-			
+
 		$this->tableControlDefaults = array();
 		$this->tableControlDefaults[EDIT_TEXT] = "Edit";
 		$this->tableControlDefaults[DELETE_TEXT] = "Delete";
 		$this->tableControlDefaults[OBJECT_DELETE_CHECK_CONSTRAINTS] = 0;
+		$this->tableControlDefaults[OBJECT_HIDE_DELETE_LINK] = 0;
+		$this->tableControlDefaults[OBJECT_HIDE_EDIT_LINK] = 0;
 		$this->tableControlDefaults[OBJECT_HIDE_NEW_LINK] = 0;
 		$this->tableControlDefaults[OBJECT_HIDE_VIEW_LINK] = 0;
 		$this->tableControlDefaults[OBJECT_HIDE_DETAILS_LINK] = 0;
@@ -1047,7 +1102,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->tableControlDefaults[REQUIRED_TEXT] = "*";
 		$this->tableControlDefaults[OBJECT_PAGING_NUM_ROWS_PER_PAGE] = 10;
 		$this->tableControlDefaults[OBJECT_PAGING_SCROLL] = 5;
-		
+
 		$this->tableControlType = array();
 		$this->tableControlType[0]['desc'] = "Table Name";
 		$this->tableControlType[0]['type'] = "";
@@ -1069,6 +1124,10 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->tableControlType[OBJECT_FILTER_DESC]['type'] = "text";
 		$this->tableControlType[OBJECT_HIDE_NEW_LINK]['desc'] = "Hide \"Create\" Link";
 		$this->tableControlType[OBJECT_HIDE_NEW_LINK]['type'] = "checkbox";
+		$this->tableControlType[OBJECT_HIDE_DELETE_LINK]['desc'] = "Hide \"Delete\" Link";
+		$this->tableControlType[OBJECT_HIDE_DELETE_LINK]['type'] = "checkbox";
+		$this->tableControlType[OBJECT_HIDE_EDIT_LINK]['desc'] = "Hide \"Edit\" Link";
+		$this->tableControlType[OBJECT_HIDE_EDIT_LINK]['type'] = "checkbox";
 		$this->tableControlType[OBJECT_HIDE_VIEW_LINK]['desc'] = "Hide \"View\" Link";
 		$this->tableControlType[OBJECT_HIDE_VIEW_LINK]['type'] = "checkbox";
 		$this->tableControlType[OBJECT_HIDE_DETAILS_LINK]['desc'] = "Hide \"Details\" Link";
@@ -1081,17 +1140,18 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->tableControlType[OBJECT_PAGING_SCROLL]['type'] = "text";
 		$this->tableControlType[REQUIRED_TEXT]['desc'] = "Required<br/>Post Text";
 		$this->tableControlType[REQUIRED_TEXT]['type'] = "text";
-		 
+
 		 //uneditable tableControlTypes not avail in the interface for now and are managed in the core class logic
 		 // OBJECT_CONNECTION_STRING - automatically set - @todo autoupdate when old server and password change
 		 // OBJECT_ACTIONS - based on actions in constructor
 		 // OBJECT_TABLE - automatically set
 		 // OTHER_OBJECTS -- this could and should be populated manually as an advanced config in your pre_process_load_ function if you want other objects available in the DOM of the crud form.  Dont worry about storing it in the serialized array
-		 
+
 		$this->fieldControlDefaults = array();
 		$this->fieldControlDefaults[SORTABLE] = 1;
 		$this->fieldControlDefaults[REQUIRED] = 0;
-		 
+ 		$this->fieldControlDefaults[SHOWCOLUMN] = 1;
+
 		$this->fieldControlType = array();
 		$this->fieldControlType[CAPTION]['desc'] = "Field Caption";
 		$this->fieldControlType[CAPTION]['type'] = "text";
@@ -1117,13 +1177,13 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->fieldControlType[POSTTEXTREAD]['type'] = "text";
 		$this->fieldControlType[SORTABLE]['desc'] = "Sortable";
 		$this->fieldControlType[SORTABLE]['type'] = "checkbox";
-		 
+
 		$this->fieldConfigType = array();
 		$this->fieldConfigType["TYPE"]['desc'] = "Input Type";
 		$this->fieldConfigType["TYPE"]['type'] = "link";
 		$this->fieldConfigType["VALUE"]['desc'] = "Default Value";
 		$this->fieldConfigType["VALUE"]['type'] = "text";
-		 
+
 		$this->fieldObjectTypes = array();
 		$this->fieldObjectTypes['file']['desc'] = "File Upload";
 		$this->fieldObjectTypes['text']['desc'] = "Text";
@@ -1137,8 +1197,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->fieldObjectTypes['wysiwyg']['desc'] = "HTML Editor";
 		$this->fieldObjectTypes['date']['desc'] = "Date";
 		$this->fieldObjectTypes['timestamp']['desc'] = "Time Stamp";
-		 
-		 
+
+
 		$this->fieldValidationTypes = array();
 		$this->fieldValidationTypes['ValidateAsEmail']['desc'] = "Validate As Email";
 		$this->fieldValidationTypes['ValidateRegularExpression']['desc'] = "Validate Regular Expression (Match Found)";
@@ -1153,7 +1213,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->fieldValidationTypes['DiscardInvalidValues']['desc'] = "Discard Invalid Values";
 		$this->fieldValidationTypes['ReplacePatterns']['desc'] = "Replace Patterns";
 		$this->fieldValidationTypes['Capitalization']['desc'] = "Capitalization";
-		 
+
 
 		$this->fieldEventTypes = array();
 		$this->fieldEventTypes['ONBLUR']['desc'] = "On Blur";
@@ -1169,7 +1229,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->fieldEventTypes['ONMOUSEOVER']['desc'] = "On Mouse Over";
 		$this->fieldEventTypes['ONMOUSEUP']['desc'] = "On Mouse Up";
 
-		 
+
 		$this->fieldMiscTypes = array();
 		$this->fieldMiscTypes['TITLE']['desc'] = "Title";
 		$this->fieldMiscTypes['TITLE']['type'] = "text";
@@ -1184,26 +1244,259 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->fieldMiscTypes['CLASS']['type'] = "text";
 		$this->fieldMiscTypes['LABEL']['desc'] = "Label Name";
 		$this->fieldMiscTypes['LABEL']['type'] = "text";
+		$this->fieldMiscTypes['MOVE_TO']['desc'] = "Location To Move:";
+		$this->fieldMiscTypes['MOVE_TO']['type'] = "text";
+		$this->fieldMiscTypes['MIME']['desc'] = "Mime Type Field Storage:";
+		$this->fieldMiscTypes['MIME']['type'] = "text";
+		$this->fieldMiscTypes['FILE_SIZE']['desc'] = "File Size Field Storage:";
+		$this->fieldMiscTypes['FILE_SIZE']['type'] = "text";
 		$this->fieldMiscTypes['ACCESSKEY']['desc'] = "Access Key";
 		$this->fieldMiscTypes['ACCESSKEY']['testdata'] = "t";
 		$this->fieldMiscTypes['ACCESSKEY']['type'] = "text";
 		$this->fieldMiscTypes['ExtraAttributes']['desc'] = "Extra Attributes";
 		$this->fieldMiscTypes['ExtraAttributes']['testdata'] = "";
 		$this->fieldMiscTypes['ExtraAttributes']['type'] = "text";
-					
+		if (!defined('RELATIVE_CRUD_CLASS_LOCATION')) {
+			$this->defineLocations();
+		}
 	}
-	
-	function paint($currentTable) {
-		
+
+	function defineLocations() {
+		// -- relative path of where the cruddy_mysql directory is from where this file is (must be publicly accessed)
+		define("RELATIVE_CRUD_CLASS_LOCATION","cruddy_mysql/");
+		if ($_SERVER['SERVER_PORT'] != '80') {
+			if ($_SERVER['SERVER_PORT'] == 443) {
+				$secure = 's';
+			}
+			$port = ":".$_SERVER['SERVER_PORT'];
+		}
+		$paths = explode('/',$_SERVER['REQUEST_URI']);
+		unset($paths[sizeof($paths)-1]);
+		unset($paths[0]);
+
+		define("PUBLIC_CRUD_CLASS_LOCATION",'http'.$secure.'://'.$_SERVER['SERVER_NAME'].$port.'/'.implode('/',$paths).'/'.RELATIVE_CRUD_CLASS_LOCATION);
+
+	}
+
+	function paintHead() {
+		if ($this->paintedHead !== true) {
+			$this->paintedHead = true;
+			if (isset($crudAdmin->currentAdminDB['crud']['console_name'])) {
+				$desc = $crudAdmin->currentAdminDB['crud']['console_name']." Administrator";
+			}
+
+			/*else {
+				$extra = (isset($_GET['admin'])) ? " Configuration Setup" : "";
+				$desc = "CRUDDY MYSQL " . $extra;
+			}*/
+
+			if (!isset($_GET['admin'])) {
+				$bodyOnKeyPress = "onkeypress=\"handleEscapeKey(event);\"";
+			} else {
+				$bodyOnKeyPress = "";
+			}
+
+			if ($this->currentAdminDB['crud']['theme'] != 'None') {
+				$themeCSS = '<link rel="stylesheet" type="text/css" href="'.$this->displayThemeCSS().'" />';
+			}
+
+			$scriptsAndCss = '
+			<link rel="stylesheet" type="text/css" href="'.$this->displayGlobalCSS().'" />
+			'.$themeCSS.'
+			<script type="text/javascript" src="'.PUBLIC_CRUD_CLASS_LOCATION.'scripts/crud_admin.js"></script>
+			<script type="text/javascript" src="'.PUBLIC_CRUD_CLASS_LOCATION.'scripts/prototype.js"></script>
+			<script type="text/javascript" src="'.PUBLIC_CRUD_CLASS_LOCATION.'scripts/cruddy_mysql.js"></script>';
+
+			if (!$this->defaultConfigOverRide) {
+				echo '
+					<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+					<html xmlns="http://www.w3.org/1999/xhtml">
+					<head>
+					<title>'.$desc.'</title>
+					'.$scriptsAndCss.'
+					</head>
+					<body '.$bodyOnKeyPress.'>
+				';
+			} else {
+				echo $scriptsAndCss;
+			}
+
+			//if (isset($_GET['msg'])) {
+				echo "<h3 style='color:#E63C1E;font-size:1.5em' id='response'>".$_GET['msg']."</h3>";
+			//}
+
+			if (isset($crudAdmin->currentAdminDB['crud']['console_name'])) {
+				echo "<div style=\"float:left;padding-right:16px;\"><h1>";
+				echo (isset($_GET['admin'])) ? "" : "<a href=\"$_SERVER[PHP_SELF]\">";
+				echo $desc;
+				echo (isset($_GET['admin'])) ? "" : "</a>";
+				echo "</h1></div><div id=\"clear\"></div>";
+			}
+		}
+		$this->paintAdminAndGroupLinks();
+	}
+
+	function paintAdminAndGroupLinks() {
+		//if ($this->paintedAdminAndGroups !== true || $this->defaultConfigOverRide) {
+		//	$this->paintedAdminAndGroups = true;
+			if ($this->cruddyAdministrator) {
+				if (is_array($this->currentAdminDB['crud']['mysql_server_names'])) {
+					$serverOptions = "<option value=\"\" selected>Select a Server</option>";
+					foreach ($this->currentAdminDB['crud']['mysql_server_names'] as $key=>$value) {
+						$serverOptions .= "<option value=\"$key\">Edit: $key</option>";
+					}
+					$serverOptions .= "<option value=\"add\">Add a new server</option>";
+				}
+
+				if (is_array($this->currentAdminDB['crud']['mysql_databases'])) {
+					$databaseOptions = "<option value=\"\" selected>Select a Database</option>";
+					foreach ($this->currentAdminDB['crud']['mysql_databases'] as $values) {
+						foreach ($values as $database) {
+							$databaseOptions .= "<option value=\"$database\">Edit: $database</option>";
+						}
+					}
+				}
+				$fieldsOptions = "<option value=\"\" selected>Select a Table</option>";
+				foreach ($this->currentAdminDB['crud']['mysql_databases'] as $server=>$values) {
+					foreach ($values as $database) {
+						$fieldsOptions .= "<optgroup label='$server -> $database'>";
+						foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG] as $key=>$value) {
+							if (stristr($key,$database."_")) {
+								$fieldsOptions .= "<option class=\"$database\" value=\"".$value[TABLE_CONFIG][OBJECT_TABLE]."\" title=\"".$server."\">Edit fields: ".$value[TABLE_CONFIG][OBJECT_TABLE]."</option>";
+							}
+						}
+						$fieldsOptions .= "</optgroup>";
+					}
+				}
+				if (!$this->defaultConfigOverRide) {
+					$editThemeLink = (isset($this->currentAdminDB['crud']['theme'])) ? "&edit=".$this->currentAdminDB['crud']['theme'] : "";
+				}
+			}
+
+			$groupLinks = "
+				<div style=\"float:left\" id=\"menu1\" class=\"menu\">
+					<div id=\"m-top\">
+						<ul id=\"m-top-ul1\">
+							<li><a href=\"?\">Home</a></li>\n";
+			if (isset($this->currentAdminDB['crud']['groups']) && $this->currentAdminDB['crud']['group_tables'] == 1) {
+				foreach ($this->currentAdminDB['crud']['groups'] as $k=>$v) {
+					if (!in_array($k,$this->currentAdminDB['crud']['roles'][$_COOKIE['current_role']]['groups'])) {
+						continue;
+					}
+					$groupLinks .= "\t\t\t\t\t<li><a href=\"?group=$k\">$k</a></li>\n";
+				}
+				$groupLinks .= "\t\t\t\t\t<li><a href=\"?logoff\">Logoff</a></li>
+						</ul>
+					</div>
+					<div id=\"m-slider\">
+						<div id=\"slider1\"></div>
+					</div>
+				</div>";
+			} else {
+				$groupLinks = "";
+			}
+
+			echo $groupLinks;
+
+			if ($this->cruddyAdministrator) {
+
+				$themes = "<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=true&select_theme=true$editThemeLink';\" href=\"#\">Themes</a></li>";
+				if (!$this->defaultConfigOverRide) {
+					$serversAndDatabases = "
+							<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);$('serverList').style.left = $('slider2').style.marginLeft;$('serverList').style.display = 'inline';\" href=\"#\">Servers</a></li>
+							<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=true&select_database=true&edit=true';\" href=\"#\">Databases</a></li>
+";
+					$groupsRolesUsers = "
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=true&select_groups=true&edit=true';\" href=\"#\">Groups</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=1&select_roles&edit=true';\" href=\"#\">Roles</a></li>
+					<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]?admin=1&select_users&edit=true';\" href=\"#\">Users</a></li>";
+					$fieldsOnClick = "$('FieldList').style.left = $('slider2').style.marginLeft;$('FieldList').style.display = 'inline';";
+					$tablesOnClick = "$('databaseList').style.left = $('slider2').style.marginLeft;$('databaseList').style.display = 'inline';";
+				} else {
+					$fieldsOnClick = "document.location = '$_SERVER[PHP_SELF]?admin=true&select_fields&edit={$_REQUEST['tablePointer']}&conf={$this->current_config}';";
+					$tablesOnClick = "document.location = '$_SERVER[PHP_SELF]?admin=true&select_tables&edit={$_REQUEST['tablePointer']}&conf={$this->current_config}';";
+				}
+
+				if ($this->isProductionized===false) {
+					// -- if array is still a security risk, make sure user converts into PHP array file for inclusion
+					$productionizeLink = "<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location = '$_SERVER[PHP_SELF]?admin=true&productionize&conf={$this->current_config}'\" href=\"#\">Production<br/>Finalize</a></li>";
+				}
+				echo "
+				<select id=\"serverList\" style=\"display:none;position:absolute;\" onchange=\"if (this.value != 'new'){document.location = '$_SERVER[PHP_SELF]?admin=true&initialize_server&edit=' + this.value;}else{document.location = '$_SERVER[PHP_SELF]?admin=true&newserver=1';}\">
+					$serverOptions
+				</select>
+				<select id=\"databaseList\" style=\"display:none;position:absolute;\" onchange=\"document.location = '$_SERVER[PHP_SELF]?admin=true&select_tables&edit=' + this.value;\">
+					$databaseOptions
+				</select>
+				<select id=\"FieldList\" style=\"display:none;position:absolute;\" onchange=\"document.location = '$_SERVER[PHP_SELF]?admin=true&select_fields&edit=' + this.value + '&server=' + this.options[this.selectedIndex].title + '&database=' + this.options[this.selectedIndex].className;\">
+					$fieldsOptions
+				</select>
+				<div style=\"clear:both;\"></div>
+				<div style=\"float:left\" id=\"menu2\" class=\"menu2\">
+					<div id=\"m-top\">
+						<ul id=\"m-top-ul2\">
+
+							<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);document.location= '$_SERVER[PHP_SELF]';\" href=\"#\">Home</a></li>
+							$serversAndDatabases
+							<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);$tablesOnClick\" href=\"#\">Tables</a></li>
+							$groupsRolesUsers
+							$themes
+							<li><a onclick=\"javascript:createCookie('redirect','$_SERVER[REQUEST_URI]',1);$fieldsOnClick\" href=\"#\">Fields</a></li>
+							$productionizeLink
+						</ul>
+					</div>
+					<div id=\"m-slider\">
+						<div id=\"slider2\"></div>
+					</div>
+				</div>
+				";
+
+				if ($this->defaultConfigOverRide) {
+					echo "<div style=\"float:right\"><a onclick=\"javascript:alert('The links to the left are to configure $this->current_config configuration.')\" href=\"#\">($this->current_config)</a></div>";
+				}
+			}
+			echo "<div id=\"clear\"></div>";
+		//}
+	}
+
+	function paint($currentTable,$mysqlServer='',$mysqlUsername='',$mysqlPassword='',$mysqlDatabase='',$configurationFile='') {
+
 		if (isset($_GET['group'])) {
 			if (!in_array($currentTable,$this->currentAdminDB['crud']['groups'][$_GET['group']])) {
 				return;
 			}
 		}
-			
-		unset($_GET['msg']);
+
+		if ($mysqlServer && !$configurationFile) {
+			$configurationFile = $currentTable;
+		}
+
+		if ($configurationFile) {
+			/*
+			 * you can manage a table completely without storing mySQL credentials in the configuration and can simply call paint directly pointing to your servername and telling it the name of your configuration like so
+			 *
+			 * include("cruddy_mysql/cruddy_mysql.php");
+			 * $crudAdmin = new cruddyMysqlAdmin();
+			 * $crudAdmin->paint('table','localhost','root','root','database','file_configuration_name');
+		    */
+			$this->defaultConfigOverRide = true;
+			$this->adminFile  = str_replace(RELATIVE_CRUD_CLASS_LOCATION,"",dirname(__FILE__)."/".$configurationFile.".config.php");
+			$this->functionsFile  = str_replace(RELATIVE_CRUD_CLASS_LOCATION,"",dirname(__FILE__)."/".$configurationFile.".custom.functions.php");
+			if ($this->adminDBExists()) {
+				$this->currentAdminDB = $this->readAdminDB();
+			} else {
+				$this->currentAdminDB = array();
+				$this->override['select_fields'] = true;
+			}
+			if (isset($this->configs[$configurationFile])) {
+				die("It is recommended to pass different configuration files for each table you are showing on a page.  \"$configurationFile\" is already used.  Pass a different filename.");
+			}
+			$this->configs[$configurationFile] = $configurationFile;
+			$this->current_config = $configurationFile;
+		} else {
+			$this->defaultConfigOverRide = false;
+		}
 		$crudTableControl = $this->currentAdminDB[CRUD_FIELD_CONFIG];
-		
 		if ($this->currentAdminDB['crud']['group_tables'] == 0 || count($_GET) != 0) {
 			$crudActions = array(
 									'new'=>strtolower($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_ACTIONS]['new'].$currentTable),
@@ -1217,39 +1510,82 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						if (function_exists('pre_process_load_".$currentTable."')) {
 							\$crudTableControl[\$currentTable] = pre_process_load_".$currentTable."(\$crudTableControl[\$currentTable]);
 						}");
-				if (isset($crudTableControl[$currentTable])) {
+
+				if (isset($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_CONNECTION_STRING])) {
+					unset($_GET['msg']);
 					$crudObject = new cruddyMysql($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_CONNECTION_STRING],$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_TABLE],$crudTableControl[$currentTable]);
 				} else {
-					die("'$currentTable' is not a valid CRUD table config");
+					if (!$mysqlServer) {
+						die("'$currentTable' is not a valid CRUD table config and does not exist in the crud configuration '".basename($this->currentAdminDB)."'");
+					} else {
+						if ($_GET['edit'] != $currentTable && isset($_GET['edit']) || ($_POST['tablePointer'] != $currentTable) && isset($_POST['tablePointer'])) {
+							return;
+						}
+						$_GET['server']       = $mysqlServer;
+						$_GET['database']     = $mysqlDatabase;
+						$_GET['username']     = $mysqlUsername;
+						$_GET['password']     = $mysqlPassword;
+						if (!isset($_GET['edit'])) {
+							$_GET['edit']         = $currentTable;
+							$_REQUEST['tablePointer'] = $currentTable;
+						} else {
+							$_REQUEST['tablePointer'] = $_GET['edit'];
+						}
+						$this->paintHead();
+						if (!file_exists($this->adminFile) || isset($_GET['admin'])) {
+							$this->handleAdminPages();
+							unset($_GET['server'],$_GET['database'],$_GET['username'],$_GET['password'],$_REQUEST['tablePointer'],$_GET['edit']);
+							return;
+						} else {
+							$crudObject = new cruddyMysql("mysql://$mysqlUsername:$mysqlPassword@$mysqlServer:3306/$mysqlDatabase",$currentTable,$crudTableControl[$currentTable]);
+							if ($configurationFile) {
+								$crudObject->defaultConfigOverRide = true;
+								$crudObject->current_config = $configurationFile;
+							}
+							unset($_GET['server'],$_GET['database'],$_GET['username'],$_GET['password'],$_REQUEST['tablePointer'],$_GET['edit']);
+						}
+					}
 				}
 				// -- object_name can be used to describe your table
 				$crudObject->object_name = $crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_DESC];
 				$crudObject->cruddyAdministrator = $this->cruddyAdministrator;
 				$crudObject->object_key = $currentTable;
-		
 				$viewUrl = (!isset($_GET['action'])) ? 'action='.$crudActions['read'].'' : '';
-				$viewText = (!isset($_GET['action'])) ? 'View' : 'Back To All';
+				if ($this->defaultConfigOverRide) {
+					$viewUrl .= "&conf=$this->current_config";
+				}
+				$viewText = (!isset($_GET['action'])) ? 'View' : '&larr; Back';
 				$amp = (stristr($_SERVER['PHP_SELF'],"?")) ? '&' : '?';
 				$newLink = '';
 				if (isset($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_FILTER_DESC])) {
 					$desc = "<h4 style='color:#333'>".$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_FILTER_DESC]."</h4>";
 				}
 				if ($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_HIDE_NEW_LINK] == 0 || $crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_HIDE_NEW_LINK] == 0) {
-					
+
 					// -- custom logic for each object on how it draws its links can go here by utilizing case statements of $currentTable
-					$newLink = "<a href='?action=".$crudActions['new']."'>Add new $crudObject->object_name</a> | ";
+					$newLink = "<a href='?action=".strtolower($crudActions['new']);
+					if ($this->defaultConfigOverRide) {
+						$newLink .= "&conf=$this->current_config";
+					}
+					$newLink .=  "'>Add new $crudObject->object_name</a> | ";
 					$break = "<br/>";
 				}
 				if (!isset($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_HIDE_VIEW_LINK]) || $crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_HIDE_VIEW_LINK] == 0 ) {
 					$viewLink = "<a href='?".$viewUrl."'>$viewText</a>";
 				}
+
+				if ($configurationFile == '') {
+					echo "<h2 style='color:#E63C1E;'>$crudObject->object_name Administration</h2>";
+				}
 				echo "
-				<h2 style='color:#E63C1E;'>$crudObject->object_name Administration</h2>
 				$desc
 				$newLink$viewLink$break
 				";
-		
-		
+				if ($this->defaultConfigOverRide && $_GET['action'] != $crudActions['read']) {
+					if (isset($_GET['conf']) && $_GET['conf'] != $this->current_config) {
+						return;
+					}
+				}
 				switch ( $_GET['action'] ) {
 					case $crudActions['new']:
 						$crudObject->button = array("TYPE"=>"submit","LABEL"=>"Add New ".$crudObject->object_name,"VALUE"=>"Add New ".$crudObject->object_name,"ID"=>INPUT_SUBMIT ,"NAME"=>INPUT_SUBMIT);
@@ -1293,11 +1629,11 @@ class cruddyMysqlAdmin extends cruddyMysql {
 										\$retPost = delete_post_process_".$currentTable."();
 									} else {
 										\$retPost = true;
-									}	
+									}
 									");
 								if ($retPost === true) {
 									if (intval($_GET[$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_PK]]) != 0) {
-										$pound = "#";	
+										$pound = "#";
 									}
 									$msg = "Your ".$crudObject->object_name." (".$pound.$_GET[$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_PK]].") has been deleted";
 								} else {
@@ -1311,9 +1647,9 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						break;
 					case $crudActions['update']:
 						$crudObject->button = array("TYPE"=>"submit","LABEL"=>"Update ".$crudObject->object_name,"VALUE"=>"Update ".$crudObject->object_name,"ID"=>INPUT_SUBMIT ,"NAME"=>INPUT_SUBMIT);
-						
+
 						eval("
-							if (function_exists('update_pre_process_".$currentTable."')) { 
+							if (function_exists('update_pre_process_".$currentTable."')) {
 								\$retPre = update_pre_process_".$currentTable."();
 							} else {
 								\$retPre = true;
@@ -1322,7 +1658,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						if ($retPre === true) {
 							if ( $crudObject->update(array($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_PK] => $_GET[$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_PK]])) == true) {
 								eval("
-									 if (function_exists('update_post_process_".$currentTable."')) { 
+									 if (function_exists('update_post_process_".$currentTable."')) {
 										\$retPost = update_post_process_".$currentTable."();
 									 } else {
 										\$retPost = true;
@@ -1342,22 +1678,20 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						// -- to do view
 						$crudObject->view(array($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_PK] => $_GET[$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_PK]]));
 						break;
-					
+
 					case $crudActions['read']:
 					default:
 						$orderBy = (!empty($_GET[$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_ACTIONS]['order_field']])) ? ' ORDER BY ' . $_GET[$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_ACTIONS]['order_field']] . ' ' . $_GET[$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_ACTIONS]['order_direction']] : '';
+						if ($crudObject->defaultConfigOverRide) {
+							if (isset($_GET['conf']) && $_GET['conf'] != $crudObject->current_config) {
+								$orderBy = '';
+							}
+						}
 						$crudObject->read($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_READ_FILTER].$orderBy);
 						break;
 				}
-				
-				// -- handle URL redirects
-				if ($url) {
-					if (!headers_sent()) {
-						header ("Location: ".$url);
-					} else {
-						echo "<script type='text/javascript'>document.location='".$url."';</script>";
-					}
-				}
+
+				$this->redirect($url);
 				echo "<hr />";
 				if ($this->cruddyAdministrator) {
 					foreach ($crudObject->performance as $k=>$v) {
@@ -1372,7 +1706,18 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			}
 		}
 	}
-	
+
+	function redirect($url) {
+		// -- handle URL redirects
+		if ($url) {
+			if (!headers_sent()) {
+				header ("Location: ".$url);
+			} else {
+				echo "<script type='text/javascript'>document.location='".$url."';</script>";
+			}
+		}
+	}
+
 	function paintGroups() {
 		if ($this->currentAdminDB['crud']['group_tables'] == 1 && count($_GET) == 0) {
 			foreach ($this->currentAdminDB['crud']['groups'] as $k=>$v) {
@@ -1384,12 +1729,12 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			}
 		}
 	}
-	 
+
 	function handleDatabaseListResultSet($result) {
 		$data = mysql_fetch_array($result, 2);
 		return $data;
 	}
-	
+
 	function queryDatabase($query, $link = null) {
 		$resultrows = array();
 		if (is_string($query)) {
@@ -1404,29 +1749,35 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		}
 		mysql_free_result($result);
 		return $resultrows;
-	}	 
+	}
 	function connectDatabase($hash,$database='') {
-		$conn = @mysql_connect($this->currentAdminDB['crud']['mysql_server_names'][$hash].":".$this->currentAdminDB['crud']['mysql_ports'][$hash],$this->currentAdminDB['crud']['mysql_user_names'][$hash],$this->currentAdminDB['crud']['mysql_passwords'][$hash]);
+		if (isset($this->currentAdminDB['crud']['mysql_server_names'][$hash])) {
+			$conn = @mysql_connect($this->currentAdminDB['crud']['mysql_server_names'][$hash].":".$this->currentAdminDB['crud']['mysql_ports'][$hash],$this->currentAdminDB['crud']['mysql_user_names'][$hash],$this->currentAdminDB['crud']['mysql_passwords'][$hash]);
+		} else {
+			$conn = @mysql_connect($_GET['server'].":3306",$_GET['username'],$_GET['password']);
+		}
 		if (!empty($database)) {
-			@mysql_select_db($database);
+			if (mysql_select_db($database) == false) {
+				die('<script>$("response").innerHTML="Invalid Database ('.$database.')";</script>');
+			}
 		}
 		if (!$conn) {
 			 die('<script>$("response").innerHTML="Could not connect to database";</script>');
 		}
 		return $conn;
-	}	 
-	
+	}
+
 	function closeDatabase($conn) {
 		@mysql_close(closeDatabase);
 	}
 
 	function displayLoginForm() {
 		echo $this->displayGenericObjects();
-		echo 
+		echo
 		"
 			<script>
 				function login(username,password) {
-					var url = \"index.php?\";
+					var url = \"".$_SERVER['PHP_SELF']."?\";
 					var params = \"username=\" + username + \"&password=\" + password;
 					new Ajax.Request( url + params,
 							{
@@ -1441,9 +1792,9 @@ class cruddyMysqlAdmin extends cruddyMysql {
 					},
 					onFailure: function() { alert('An unexpected error occurred.'); }
 				});
-		}	
+		}
 			</script>
-			<div id='serverinfo'> 
+			<div id='serverinfo'>
 				 Login To <strong>".$this->currentAdminDB['crud']['console_name']."</strong>
 				 <table>
 						<tr>
@@ -1462,7 +1813,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			</div>
 			";
 	 }
-	 
+
 	function LoginToCruddyMysql($username,$password) {
 		ob_end_clean();
 		$loggedIn = false;
@@ -1474,30 +1825,30 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				break;
 			}
 		}
-	
+
 		if ($loggedIn === false) {
 			echo "Invalid username or password.";
 		}
-			
+
 		exit;
 	}
-	 
+
 
 	#1 Step
 	function displayDatabaseConnectionForm() {
 		echo $this->displayGenericObjects();
-		
+
 		if ($_GET['edit']) {
 			$defaultPort = $this->currentAdminDB['crud']['mysql_ports'][$_GET['edit']];
 			$defaultServer = $this->currentAdminDB['crud']['mysql_server_names'][$_GET['edit']];
-			$defaultUserName = $this->currentAdminDB['crud']['mysql_user_names'][$_GET['edit']];      
-			$defaultPassword = $this->currentAdminDB['crud']['mysql_passwords'][$_GET['edit']];        
+			$defaultUserName = $this->currentAdminDB['crud']['mysql_user_names'][$_GET['edit']];
+			$defaultPassword = $this->currentAdminDB['crud']['mysql_passwords'][$_GET['edit']];
 		} else {
 			$defaultPort = '3306';
 			$defaultServer = 'localhost';
 			$defaultUserName = 'root';
 		}
-		
+
 		if ($_GET['mode']=='edit' || !isset($_GET['newserver'])) {
 			$adminHTML = "<tr>
 					<td>Name of Administration: </td>
@@ -1507,10 +1858,10 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			$adminHTML = "<tr><td>Name of Administration: </td><input type='hidden' id='adminname' value='".$this->currentAdminDB['crud']['console_name']."'/><td>".$this->currentAdminDB['crud']['console_name']."</td>
 				 </tr>";
 		}
-		
-		echo 
+
+		echo
 			"
-			<div id='serverinfo'> 
+			<div id='serverinfo'>
 				 Step 1: Server Connections
 				 <table>
 					$adminHTML
@@ -1538,7 +1889,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			</div>
 		";
 	}
-			
+
 	function storeDatabaseConnectionForm() {
 		if ($this->currentAdminDB['crud']['completed_step'] != 'All') {
 			$this->currentAdminDB['crud']['completed_step'] = 1;
@@ -1553,7 +1904,6 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			$this->currentAdminDB['crud']['mysql_user_names'][$serverHash] = $_GET['username'];
 			$this->currentAdminDB['crud']['mysql_passwords'][$serverHash] = $_GET['password'];
 			$this->currentAdminDB['crud']['mysql_ports'][$serverHash] = $_GET['port'];
-			
 			if (isset($this->currentAdminDB[CRUD_FIELD_CONFIG])) {
 				// -- update connections for each matching DB
 				foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG] as $k=>$v) {
@@ -1564,11 +1914,22 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				}
 			}
 			$this->writeAdminDB();
+
+			foreach ($this->currentAdminDB['crud']['mysql_server_names'] as $mySQLServerHash=>$mySQLServer) {
+				$phpCode .= "\$connection['$mySQLServerHash']['server']   = '{$this->currentAdminDB['crud']['mysql_server_names'][$mySQLServerHash]}';\n";
+				$phpCode .= "\$connection['$mySQLServerHash']['username'] = '{$this->currentAdminDB['crud']['mysql_user_names'][$mySQLServerHash]}';\n";
+				$phpCode .= "\$connection['$mySQLServerHash']['password'] = '{$this->currentAdminDB['crud']['mysql_passwords'][$mySQLServerHash]}';\n";
+				$phpCode .= "\$connection['$mySQLServerHash']['port']     = '{$this->currentAdminDB['crud']['mysql_ports'][$mySQLServerHash]}';\n";
+			}
+
+			$this->writeFile($this->databaseConnectionFile,
+			"<?php\n// -- all of your server connections\n$phpCode\n?>"
+			);
 		}
 		exit;
 	}
-	 
-	 
+
+
 	#2 Step
 	function displayDatabaseSelectionForm() {
 		foreach ($this->currentAdminDB['crud']['mysql_server_names'] as $mySQLServerHash=>$mySQLServer) {
@@ -1576,7 +1937,9 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			$resultrows = $this->queryDatabase(GET_DATABASES_SQL,$conn);
 			foreach ($resultrows as $key=>$value) {
 				$selected = "";
-				if ($this->currentAdminDB['crud']['mysql_databases'][$this->currentAdminDB['crud']['mysql_server_names'][$mySQLServerHash].":".$this->currentAdminDB['crud']['mysql_ports'][$mySQLServerHash]] == $value['Database']|| !isset($_GET['edit'])) {
+				$db = $this->currentAdminDB['crud']['mysql_databases'][$this->currentAdminDB['crud']['mysql_server_names'][$mySQLServerHash].":".$this->currentAdminDB['crud']['mysql_ports'][$mySQLServerHash]];
+				$keys = array_keys($db);
+				if ($db == $value['Database'] || $keys[0]  == $value['Database'] || !isset($_GET['edit'])) {
 					$selected = "selected";
 				}
 				if ($value['Database'] == 'information_schema' || $value['Database'] == 'mysql') { continue; }
@@ -1587,9 +1950,9 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			$additionalText = "(All Are Selected CTRL+CLICK to deselect)<br/>";
 		}
 		echo $this->displayGenericObjects();
-		echo 
+		echo
 			"
-			<div id='serverinfo'> 
+			<div id='serverinfo'>
 				 Step 2: Database Selection
 				 <table>
 						<tr>
@@ -1607,7 +1970,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			";
 			$this->closeDatabase($conn);
 	}
-			
+
 	function storeDatabaseSelectionForm() {
 		if ($this->currentAdminDB['crud']['completed_step'] != 'All') {
 			$this->currentAdminDB['crud']['completed_step'] = 2;
@@ -1616,9 +1979,16 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		unset($_GET['admin'],$_GET['select_database'],$_GET['store_database'],$this->currentAdminDB['crud']['mysql_databases']);
 		if (is_array($_GET)) {
 			$i=0;
+			$databasesLeft = $this->currentAdminDB['crud']['mysql_tables_to_config'];
 			foreach ($_GET as $key=>$value) {
 				$this->currentAdminDB['crud']['mysql_databases'][$value][$key] = $key;
 				$i++;
+				unset($databasesLeft[$key]);
+			}
+			foreach ($databasesLeft as $database) {
+				foreach ($database as $configuration) {
+					unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$configuration]);
+				}
 			}
 			$this->writeAdminDB();
 		} else {
@@ -1626,7 +1996,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		}
 		exit;
 	}
-			
+
 	function createDisplayName($name) {
 		$fieldCaption = str_replace(array("_","-",".","[","]","<",">"),array(" "," "," "," "," "," "," "),$name);
 		$parts = explode(" ",$fieldCaption);
@@ -1640,15 +2010,21 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		}
 		return $fieldCaption;
 	}
-	 
+
 	#3 Step
-	function displayTableSelectionForm() {
-		foreach ($this->currentAdminDB['crud']['mysql_server_names'] as $mySQLServerHash=>$mySQLServer) {
+	function displayTableSelectionForm($mysqlServers,$mysqlDatabases) {
+		if ($this->defaultConfigOverRide) {
+			if (isset($_GET['conf']) && $_GET['conf'] != $this->current_config) {
+				return;
+			}
+		}
+
+		foreach ($mysqlServers as $mySQLServerHash=>$mySQLServer) {
 			$tableControlFlagDisplay = false;
-			foreach ($this->currentAdminDB['crud']['mysql_databases'][$mySQLServerHash] as $database) {
-				if (isset($_GET['edit']) && $database != $_GET['edit']) {
+			foreach ($mysqlDatabases[$mySQLServerHash] as $database) {
+				/*if (isset($_GET['edit']) && $database != $_GET['edit']) {
 					continue;
-				}
+				}*/
 				$failure = false;
 				$conn = $this->connectDatabase($mySQLServerHash,$database);
 				$resultrows = $this->queryDatabase(GET_TABLES_SQL,$conn);
@@ -1662,7 +2038,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						}
 					}
 				}
-					
+
 				if ($failure === false) {
 					if ($tableControlFlagDisplay === false) {
 						$tableControlFlagDisplay = true;
@@ -1691,8 +2067,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 											<td style=\"font-size:1.2em;\" colspan=\"20\">Database:$database</td>
 										 </tr>";
 					}
-					
-					$options .= "
+
+					/*$options .= "
 					<tr>
 						<td>Uncheck All</td>
 					";
@@ -1700,7 +2076,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						if (empty($text["type"]) ) { continue;}
 						if (!isset($_GET['edit']) && $key == OBJECT_PK) {
 							continue;
-						}	
+						}
 						$rowOutPut = '';
 						$checked2 = '';
 						$value = $this->tableControlDefaults[$key];
@@ -1711,45 +2087,35 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						} else if ($text['type'] == 'checkbox') {
 							$checked2 = 'On';
 						}
-							
+
 						if ($checked2 != '') {
 							$rowOutPut .= 'Turn all '.$checked2;
 						} else {
 							$rowOutPut .= 'Replace All Text';
 						}
-														
+
 						$options .= "<td>".$rowOutPut."</td>";
 					}
-					$option .= "   
-					</tr>   
-					";
-					
-					
+					$option .= "
+					</tr>
+					";*/
+					if ($this->defaultConfigOverRide) {
+						$tableHash = $_GET['edit'];
+					} else {
+						$tableHash = $database."_".$table;
+					}
 					foreach ($resultrows as $key=>$value) {
+
 						$selected = "";
 						$tableName = $value['Tables_in_'.$database];
-						$resultPK = $this->queryDatabase(
-						"SELECT k.column_name
-						FROM information_schema.table_constraints t
-						JOIN information_schema.key_column_usage k
-						USING(constraint_name,table_schema,table_name)
-						WHERE t.constraint_type='PRIMARY KEY'
-						AND t.table_schema='$database'
-						AND t.table_name='$tableName'
-						UNION
-						",$conn);
-						if (empty($resultPK)) {
-							// -- developers might not have access to information_schema
-							$resultPK2 = $this->queryDatabase(sprintf(GET_COLUMNS_SQL,$tableName),$conn);
-							if (is_array($resultPK2)) {
-								foreach ($resultPK2 as $key=>$row) {
-									if ($row['Key'] == 'PRI') {
-										$resultPK[0]['column_name'] = $row['Field'];
-									}
-								}
-							}
+						if (!$this->defaultConfigOverRide) {
+							$tableHash = $database."_".$tableName;
 						}
-						if (isset($this->currentAdminDB[CRUD_FIELD_CONFIG][$database."_".$tableName])) {
+						if ($this->defaultConfigOverRide && $_GET['edit'] != $tableName) {
+							continue;
+						}
+						$resultPK = $this->getPrimaryKey($database,$tableName,$conn);
+						if (isset($this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash])) {
 							$selected = "checked";
 							if ($_GET['edit']) {
 								// -- warn user if editing
@@ -1758,10 +2124,14 @@ class cruddyMysqlAdmin extends cruddyMysql {
 								$extraJS = "uncheckedTable=false;";
 							}
 						} else {
-							$selected = "checked";
+							$selected = "";
 							$extraJS = "uncheckedTable=false;";
 						}
 
+						if (!$_GET['edit']) {
+							$selected = "checked";
+							$extraJS = "uncheckedTable=false;";
+						}
 						if (empty($resultPK[0]['column_name'])) {
 							$errorsCount++;
 							$errors  .= "<div class=\"error\">\"$mySQLServer.$database.$tableName\" has no  unique primary key!  Please define and refresh this page.  You cannot use this table in the CRUD system. (ALTER TABLE `$tableName` ADD `id` INT( 11 ) NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST ;)</div>";
@@ -1771,6 +2141,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 							<tr>
 								<td $additionalHTML $tableName<input type=\"hidden\" value=\"".$resultPK[0]['column_name']."\" name=\"tables[$mySQLServerHash][$database][$tableName][PK]\"/></td>
 							";
+
 							foreach ($this->tableControlType as $key=>$text) {
 								if (empty($text["type"]) ) { continue;}
 								if (!isset($_GET['edit']) && $key == OBJECT_PK) {
@@ -1782,7 +2153,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 								$extra = '';
 								$checked2 = '';
 								$extra2 = '';
-								if ($this->currentAdminDB['crud']['completed_step'] != 'All') {
+								if ($this->currentAdminDB['crud']['completed_step'] != 'All' && !$this->defaultConfigOverRide) {
 									// -- pull from default to pre-populate values
 									$value = $this->tableControlDefaults[$key];
 									if ($key == OBJECT_DESC) {
@@ -1790,8 +2161,19 @@ class cruddyMysqlAdmin extends cruddyMysql {
 									}
 									$value = $this->createDisplayName($value);
 								} else {
-									$value = $this->currentAdminDB[CRUD_FIELD_CONFIG][$database."_".$tableName][TABLE_CONFIG][$key];
+									$value = $this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][$key];
 								}
+
+								if (empty($value)) {
+									if ($key == OBJECT_DESC) {
+										$value = str_replace(array('_','-'),array(' ',' '),ucfirst($tableName));
+										$value = $this->createDisplayName($value);
+									} else {
+										$value = $this->tableControlDefaults[$key];
+									}
+								}
+
+								//var_dump($this->currentAdminDB,$tableHash,$table);
 								if ($text['type'] == 'checkbox' && ($value === true || $value == '1')) {
 									$checked = 'checked';
 									$checked2 = 'On';
@@ -1800,7 +2182,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 								} else if ($text['type'] == 'checkbox') {
 									$checked2 = "Off";
 								}
-								
+
 								if ($text['type'] == 'checkbox') {
 									$extra = "style='cursor:pointer;' onclick='toggleObj(\"tableConfig[$mySQLServerHash][$database][$tableName][$key]\")'";
 									$extra2 = "style='display:none;'";
@@ -1808,8 +2190,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 
 								$options .= "<td $extra><input $extra2 $extra type=\"$text[type]\" name=\"tableConfig[$mySQLServerHash][$database][$tableName][$key]\" id=\"tableConfig[$mySQLServerHash][$database][$tableName][$key]\" value=\"$value\" $checked/><span id=\"tableConfig[$mySQLServerHash][$database][$tableName][$key][onoff]\" class=\"".strtolower($checked2)."\">$checked2</span></td>";
 							}
-							$option .= "   
-							</tr>   
+							$option .= "
+							</tr>
 							";
 						}
 					}
@@ -1818,23 +2200,23 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				$this->closeDatabase($conn);
 			}
 		}
-		
+
 		if ($errors) {
 			$allErrors = "
-				<div class=\"error\" style=\"cursor:pointer;\" onclick=\"if ($('allerrors').style.display == 'none') { $('allerrors').style.display = 'inline';} else { $('allerrors').style.display = 'none';}\">There were $errorsCount on tables that could not be used because Primary Keys Dont Exist.  Click For more Info.</div>
+				<div class=\"error\" style=\"cursor:pointer;\" onclick=\"if ($('allerrors').style.display == 'none') { $('allerrors').style.display = 'inline';} else { $('allerrors').style.display = 'none';}\">There were tables that could not be used because Primary Keys Dont Exist.  Click For more Info.</div>
 						<span id=\"allerrors\" style=\"display:none\">
 							$errors
 					</span>";
 		}
 
-		echo 
+		echo
 			"
 			<script>
 				var uncheckedTable=false;
 			</script>
-			<form action='$_SERVER[PHP_SELF]?admin=1&select_tables=1&store_database=1' id='tableForm' method='post'>
+			<form action='$_SERVER[PHP_SELF]?admin=1&select_tables=1&store_database=1' id='tableForm{$_GET['edit']}' method='post'>
 				".$this->displayGenericObjects()."
-				<div id='serverinfo'> 
+				<div id='serverinfo'>
 						Step 3: Table Selection
 						$allErrors
 						<table style='width:1500px;'>
@@ -1843,20 +2225,146 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						<a class='button' onclick='
 						if (uncheckedTable==true) {
 							if (window.confirm(\"Are you sure you want to remove a table from the listing?  Doing so will delete all field configuration for this table.\")) {
-								$(\"tableForm\").submit();
+								$(\"tableForm{$_GET['edit']}\").action= $(\"tableForm{$_GET['edit']}\").action + \"&conf=$this->current_config\";
+								$(\"tableForm{$_GET['edit']}\").submit();
 							}
-						} else { 
-							$(\"tableForm\").submit();
+						} else {
+							$(\"tableForm{$_GET['edit']}\").action= $(\"tableForm{$_GET['edit']}\").action + \"&conf=$this->current_config\";
+							$(\"tableForm{$_GET['edit']}\").submit();
 						}'><span>Select These Tables</span></a>
 				 </div>
 			</form>
 			";
-		
+
 	}
-	
+
+	function handleAdminPages() {
+		echo '<span style="font-size:1.2em;">';
+		// -- step 1
+		if (isset($_GET['initialize_server']) || $this->override['initialize_server']) {
+			if (isset($_GET['store_database'])) {
+				$this->storeDatabaseConnectionForm();
+			} else {
+				$this->displayDatabaseConnectionForm();
+			}
+		}
+
+		// -- step 2
+		if (isset($_GET['select_database']) || $this->override['select_database']) {
+			if (isset($_GET['store_database'])) {
+				$this->storeDatabaseSelectionForm();
+			} else {
+				$this->displayDatabaseSelectionForm();
+			}
+		}
+
+		// -- step 3
+		if (isset($_GET['select_tables']) || $this->override['select_tables']) {
+			if (isset($_GET['store_database'])) {
+				$this->storeTableSelectionForm();
+			} else {
+				if ($this->defaultConfigOverRide) {
+					$mySqlArray   = array($_GET['server']=>$_GET['server']);
+					$mysqlDbArray = array($_GET['server']=>array($_GET['database']=>$_GET['database']));
+				} else {
+					$mySqlArray   = $this->currentAdminDB['crud']['mysql_server_names'];
+					$mysqlDbArray = $this->currentAdminDB['crud']['mysql_databases'];
+				}
+				$this->displayTableSelectionForm($mySqlArray,$mysqlDbArray);
+			}
+		}
+
+		// -- step 4
+		if (isset($_GET['select_groups']) || $this->override['select_groups']) {
+			if (isset($_GET['store_database'])) {
+				$this->storeGroupSelectionForm();
+			} else {
+				$this->displayGroupSelectionForm();
+			}
+		}
+
+		// -- step 5
+		if (isset($_GET['select_roles']) || $this->override['select_roles']) {
+			if (isset($_GET['store_database'])) {
+				$this->storeRolesSelectionForm();
+			} else {
+				$this->displayRolesSelectionForm();
+			}
+		}
+
+		// -- step 6
+		if (isset($_GET['select_users']) || $this->override['select_users']) {
+			if (isset($_GET['store_database'])) {
+				$this->storeUserSelectionForm();
+			} else {
+				$this->displayUserSelectionForm();
+			}
+		}
+
+		// -- step 7
+		if (isset($_GET['select_theme']) || $this->override['select_themes']) {
+			if (isset($_GET['store_database'])) {
+				$this->storeThemeSelectionForm();
+			} else {
+				$this->displayThemeSelectionForm();
+			}
+		}
+
+		// -- step 8 (done after everything on a per table basis)
+		if (isset($_GET['select_fields']) || $this->override['select_fields']) {
+			if (isset($_GET['store_database'])) {
+				$this->storeFieldSelectionForm();
+			} else {
+				$this->displayFieldSelectionForm();
+			}
+		}
+
+		// -- step 9 finalize your local serialized array for production use
+		if (isset($_GET['productionize'])) {
+			$this->productionizeAdminDB();
+		}
+
+		// -- ajax fields
+		if (isset($_GET['find_fields'])) {
+			$this->displayFieldsAJAX();
+		}
+
+		echo '</span>';
+	}
+
+	function getPrimaryKey($database,$tableName,$conn) {
+		$resultPK = $this->queryDatabase(
+		"SELECT k.column_name
+		FROM information_schema.table_constraints t
+		JOIN information_schema.key_column_usage k
+		USING(constraint_name,table_schema,table_name)
+		WHERE t.constraint_type='PRIMARY KEY'
+		AND t.table_schema='$database'
+		AND t.table_name='$tableName'
+		UNION
+		",$conn);
+		if (empty($resultPK)) {
+			// -- developers might not have access to information_schema
+			$resultPK2 = $this->queryDatabase(sprintf(GET_COLUMNS_SQL,$tableName),$conn);
+			if (is_array($resultPK2)) {
+				foreach ($resultPK2 as $key=>$row) {
+					if ($row['Key'] == 'PRI') {
+						$resultPK[0]['column_name'] = $row['Field'];
+					}
+				}
+			}
+		}
+		return $resultPK;
+	}
+
 	function storeTableSelectionForm() {
 		if ($this->currentAdminDB['crud']['completed_step'] != 'All') {
 			$this->currentAdminDB['crud']['completed_step'] = 3;
+		}
+		if ($this->defaultConfigOverRide) {
+			if (isset($_GET['conf']) && $_GET['conf'] != $this->current_config) {
+				return;
+			}
 		}
 		ob_end_clean();
 		if(is_array($_REQUEST['tables'])) {
@@ -1864,7 +2372,48 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				foreach ($_REQUEST['tables'] as $server=>$selectedDatabase) {
 					foreach ($selectedDatabase as $database=>$tableValues) {
 						foreach ($tableValues as $table=>$primaryKey) {
-							$tableHash = $database."_".$table;
+
+							if ($this->defaultConfigOverRide) {
+								$tableHash = $table;
+							} else {
+								$tableHash = $database."_".$table;
+							}
+
+							$this->writeFile( getcwd().$this->systemDirectorySeparator."pages_".$_SERVER['SERVER_NAME'].".$table.php","<?php
+ob_start();
+require_once(\"crud_".$_SERVER['SERVER_NAME'].".connections.php\");
+require_once(\"cruddy_mysql/cruddy_mysql.php\");
+\$crudAdmin = new cruddyMysqlAdmin();
+\$serverHash    = \"$server\";
+\$tableName     = \"$table\";
+\$databaseName  = \"$database\";
+
+echo
+'	<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">
+	<html xmlns=\"http://www.w3.org/1999/xhtml\">
+	<head>
+	<title></title>
+	<meta http-equiv=\"Content-Language\" content=\"English\" />
+	<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />
+	<body>
+<h3>Copy/paste or modify this template in any application to manage your data for the '.\$tableName.' table</h3>
+<h3>Once you are done configuring '.\$tableName.'.config.php, click Productionize to ensure security on your database connections</h3>
+';
+// -- set to true or false when you wish to make changes to the crud configuration for the table
+\$crudAdmin->cruddyAdministrator = true;
+\$crudAdmin->paint(\$tableName, \$connection[\$serverHash]['server'], \$connection[\$serverHash]['username'], \$connection[\$serverHash]['password'], \$databaseName, \$tableName);
+
+echo
+'
+</body>
+</html>
+';
+
+ob_end_flush();
+?>"
+							);
+
+							$this->currentAdminDB['crud']['mysql_tables_to_config'][$database][$tableHash] = $tableHash;
 							foreach ($this->tableControlDefaults as $systemKey=>$text) {
 								$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][$systemKey] = $text;
 							}
@@ -1873,53 +2422,31 @@ class cruddyMysqlAdmin extends cruddyMysql {
 								if ($_REQUEST['tableConfig'][$server][$database][$table][$systemKey]) {
 									$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][$systemKey] = $_REQUEST['tableConfig'][$server][$database][$table][$systemKey];
 								} else {
-									unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][$systemKey]);	
+									unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][$systemKey]);
 								}
 							}
+							if (!$this->defaultConfigOverRide) {
+								$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_CONNECTION_STRING] = "mysql://".$this->currentAdminDB['crud']['mysql_user_names'][$server].":".$this->currentAdminDB['crud']['mysql_passwords'][$server]."@".$this->currentAdminDB['crud']['mysql_server_names'][$server].":".$this->currentAdminDB['crud']['mysql_ports'][$server]."/".$database;
+								// -- add default field behavior now
+								$conn = $this->connectDatabase($this->currentAdminDB['crud']['mysql_server_names'][$server].":".$this->currentAdminDB['crud']['mysql_ports'][$server],$database);
+								$this->addDefaultFieldData($table,$conn,$tableHash);
+								$this->closeDatabase($conn);
+							}
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_ACTIONS] = $this->tableControlDefaults[OBJECT_ACTIONS];
-							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_CONNECTION_STRING] = "mysql://".$this->currentAdminDB['crud']['mysql_user_names'][$server].":".$this->currentAdminDB['crud']['mysql_passwords'][$server]."@".$this->currentAdminDB['crud']['mysql_server_names'][$server].":".$this->currentAdminDB['crud']['mysql_ports'][$server]."/".$database;
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_TABLE] = $table;
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_DESC] = $_REQUEST['tableConfig'][$server][$database][$table][OBJECT_DESC];
 							$pk = $primaryKey['PK'];
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_PK] = $pk;
-							$linkEdit = "?action=".$this->actionTypes['update'].$tableHash."&".$pk."=%".$pk."%";
-							$linkDelete = "?action=".$this->actionTypes['delete'].$tableHash."&".$pk."=%".$pk."%";
+							$linkEdit = "?action=".strtolower($this->actionTypes['update'].$tableHash)."&".$pk."=%".$pk."%";
+							$linkDelete = "?action=".strtolower($this->actionTypes['delete'].$tableHash)."&".$pk."=%".$pk."%";
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][EDIT_LINK] = $linkEdit;
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][DELETE_LINK] = $linkDelete;
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OTHER_LINKS] = "";
-								
-							// -- add default field behavior now
-							$conn = $this->connectDatabase($this->currentAdminDB['crud']['mysql_server_names'][$server].":".$this->currentAdminDB['crud']['mysql_ports'][$server],$database);
-							$fieldResults = $this->queryDatabase(sprintf(GET_COLUMNS_SQL,$table),$conn);
 
-							if (is_array($fieldResults)) {
-								foreach ($fieldResults as $key=>$row) {
-									$fieldCaption = $this->createDisplayName($row['Field']);
-									$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][CAPTION] = $fieldCaption;
-									$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][SORTABLE] = true;
-									$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']."_config"] = array();
-									$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][SHOWCOLUMN] = true;
-									if (stristr($row['Comment'],"lookup")) {
-										// -- if you initially put lookup,tableName,fieldThatStoresKey,fieldThatStoresTextLookup in your comments they will be automatically initialized
-										list($type,$table,$field,$value) = explode(",",$row['Comment']);
-											$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][TABLE] = trim($table);
-											$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][ID] = trim($field);
-											$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][TEXT] = trim($value);
-									}
-									if ($row['Field'] == $pk) {
-										$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][SHOWCOLUMN] = false;
-										$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][READONLY] = true;
-										$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][UPDATE_READ_ONLY] = true;
-										$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][HIDE] = true;
-										continue;
-									}
-								}
-							}
-							if (!isset($primaryKey['use'])) { 
-								unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash]); 
+							if (!isset($primaryKey['use'])) {
+								unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash]);
 								continue;
 							}
-						$this->closeDatabase($conn);
 						}
 					}
 				}
@@ -1928,60 +2455,60 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG] as $tableHash=>$obj) {
 					$drawFunctions .= "\$crudAdmin->paint('$tableHash');\n\n";
 					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE LOADING A TABLE RECORDSET (Primarily used to overwrite parts of the serialized array with \$_SESSION vars and application specific logic)\n*/";}
-					
-					$functions .= "\n\nif(!function_exists('pre_process_load_".$this->cleanTableNames($tableHash)."')){\nfunction pre_process_load_".$this->cleanTableNames($tableHash)."(\$pointer){\n\t";
-					
+
+					$functions .= "\n\nif(!function_exists('pre_process_load_".$this->cleanTableNames($tableHash)."')){\n\tfunction pre_process_load_".$this->cleanTableNames($tableHash)."(\$pointer){\n\t";
+
 					if ($showComments) { $functions .= "//--add your custom logic here such as changing \$pointer[TABLE_CONFIG][OBJECT_READ_FILTER] with a dynamic where clause or \$pointer['fieldname_config']['VALUE'] for overriding values or any attributes possible in the config array ";	}
-					
-					$functions .= "\n\treturn \$pointer;\n}\n}\n\n";
-					
+
+					$functions .= "\n\t\treturn \$pointer;\n\t}\n}\n\n";
+
 					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE INSERTING A RECORD\n*/ ";	}
-					
-					$functions .= "\n\nif(!function_exists('pre_process_load_".$this->cleanTableNames($tableHash)."')){\nfunction new_pre_process_".$this->cleanTableNames($tableHash)."(){\n\t";
-					
+
+					$functions .= "\n\nif(!function_exists('pre_process_load_".$this->cleanTableNames($tableHash)."')){\n\tfunction new_pre_process_".$this->cleanTableNames($tableHash)."(){\n\t";
+
 					if ($showComments) { $functions .= "//--add your custom logic here before inserting a record in $tableHash -- return false if not wanting to add new ";	}
-					
-					$functions .= "\n\treturn true;\n}\n}\n\n";
-					
+
+					$functions .= "\n\t\treturn true;\n\t}\n}\n\n";
+
 					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." POST PROCESSES AFTER INSERTING A RECORD\n*/ ";	}
-					
-					$functions .= "\n\nif(!function_exists('new_post_process_".$this->cleanTableNames($tableHash)."')){\nfunction new_post_process_".$this->cleanTableNames($tableHash)."(){\n\t";
-					
+
+					$functions .= "\n\nif(!function_exists('new_post_process_".$this->cleanTableNames($tableHash)."')){\n\tfunction new_post_process_".$this->cleanTableNames($tableHash)."(){\n\t";
+
 					if ($showComments) { $functions .= "//--add your custom logic here after inserting a record in $tableHash ";	}
-					
-					$functions .= "\n\treturn true;\n}\n}\n\n";
-					
+
+					$functions .= "\n\t\treturn true;\n\t}\n}\n\n";
+
 					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE UPDATING A RECORD\n*/ ";	}
-					
-					$functions .= "\n\nif(!function_exists('update_pre_process_".$this->cleanTableNames($tableHash)."')){\nfunction update_pre_process_".$this->cleanTableNames($tableHash)."(){";
-					
+
+					$functions .= "\n\nif(!function_exists('update_pre_process_".$this->cleanTableNames($tableHash)."')){\n\tfunction update_pre_process_".$this->cleanTableNames($tableHash)."(){";
+
 					if ($showComments) { $functions .= "\n\t//--add your custom logic here before updating a record in  $tableHash -- return false if not wanting to update the record because of logical checks ";	}
-					
-					$functions .= "\n\treturn true;\n}\n}\n\n";
-					
+
+					$functions .= "\n\t\treturn true;\n\t}\n}\n\n";
+
 					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." POST PROCESSES AFTER UPDATING A RECORD\n*/ ";	}
-					
-					$functions .= "\n\nif(!function_exists('update_post_process_".$this->cleanTableNames($tableHash)."')){\nfunction update_post_process_".$this->cleanTableNames($tableHash)."(){";
-					
+
+					$functions .= "\n\nif(!function_exists('update_post_process_".$this->cleanTableNames($tableHash)."')){\n\tfunction update_post_process_".$this->cleanTableNames($tableHash)."(){";
+
 					if ($showComments) { $functions .= "\n\t//--add your custom logic here after updating a record in $tableHash ";	}
-					
-					$functions .= "\n\treturn true;\n}\n}\n\n";
-					
+
+					$functions .= "\n\t\treturn true;\n\t}\n}\n\n";
+
 					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." PRE PROCESSES BEFORE DELETING A RECORD\n*/ ";	}
-					
+
 					$functions .= "\n\nif(!function_exists('delete_pre_process_".$this->cleanTableNames($tableHash)."')){\nfunction delete_pre_process_".$this->cleanTableNames($tableHash)."(){";
-					
+
 					if ($showComments) { $functions .= "\n\t//--add your custom logic here before deleing a record in  $tableHash -- return false if not wanting to delete the record based on logic you add ";	}
-					
-					$functions .= "\n\treturn true;\n}\n}\n\n";
-					
+
+					$functions .= "\n\t\treturn true;\n\t}\n}\n\n";
+
 					if ($showComments) { $functions .= "/*\n* ".strtoupper($tableHash)." POST PROCESSES AFTER DELETING A RECORD\n*/ ";	}
-					
-					$functions .= "\n\nif(!function_exists('delete_post_process_".$this->cleanTableNames($tableHash)."')){\nfunction delete_post_process_".$this->cleanTableNames($tableHash)."(){";
-					
+
+					$functions .= "\n\nif(!function_exists('delete_post_process_".$this->cleanTableNames($tableHash)."')){\n\tfunction delete_post_process_".$this->cleanTableNames($tableHash)."(){";
+
 					if ($showComments) { $functions .= "\n\t//--add your custom logic here after deleing a record in $tableHash ";	}
-					
-					$functions .= "\n\treturn true;\n}\n}\n\n";
+
+					$functions .= "\n\t\treturn true;\n\t}\n}\n\n";
 				}
 				$drawFunctions .= "\$crudAdmin->paintGroups();\n\n";
 				$functions .= "\n\n?>";
@@ -1989,18 +2516,21 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				if (!file_exists($this->functionsFile) ||$this->currentAdminDB['crud']['functionsfile_mtime'] == filemtime($this->functionsFile)) {
 					// -- no file modifications have been done or file doesnt exist
 					$this->writeFile($this->functionsFile,$functions);
-					$this->currentAdminDB['crud']['functionsfile_mtime'] = filemtime($this->functionsFile); 
+					$this->currentAdminDB['crud']['functionsfile_mtime'] = filemtime($this->functionsFile);
 				} else {
 					$this->writeFile($this->functionsFile.".new.php",$functions);
 				}
-				$this->writeFile($this->functionsDrawFile,$drawFunctions);
-				$this->currentAdminDB['crud']['drawfile_mtime'] = filemtime($this->functionsFile); 
+				if (!$this->defaultConfigOverRide) {
+					$this->writeFile($this->functionsDrawFile,$drawFunctions);
+				}
+
+				$this->currentAdminDB['crud']['drawfile_mtime'] = filemtime($this->functionsFile);
 				$this->writeAdminDB();
 				if ($_GET['mode'] != 'edit' ) {
-					if (!isset($_COOKIE['redirect'])) {
-						header("Location: ".$_SERVER['PHP_SELF']."?admin=1&select_groups");
+					if (!isset($_COOKIE['redirect']) || $this->currentAdminDB['crud']['completed_step'] != 'All') {
+						$this->redirect($_SERVER['PHP_SELF']."?admin=1&select_groups");
 					} else {
-						header("Location: ".$_COOKIE['redirect']);
+						$this->redirect($_COOKIE['redirect']);
 					}
 				}
 			} else {
@@ -2008,25 +2538,61 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			}
 			exit;
 	}
-	 
+
+	function addDefaultFieldData($table,$conn,$tableHash) {
+		$fieldResults = $this->queryDatabase(sprintf(GET_COLUMNS_SQL,$table),$conn);
+		if (is_array($fieldResults)) {
+			foreach ($fieldResults as $key=>$row) {
+				$fieldCaption = $this->createDisplayName($row['Field']);
+				$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][CAPTION] = $fieldCaption;
+				$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][SORTABLE] = true;
+				$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']."_config"] = array();
+				$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][SHOWCOLUMN] = true;
+				if (stristr($row['Comment'],"lookup")) {
+					// -- if you initially put lookup,tableName,fieldThatStoresKey,fieldThatStoresTextLookup in your comments they will be automatically initialized
+					list($type,$table,$field,$value) = explode(",",$row['Comment']);
+					$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][TABLE] = trim($table);
+					$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][ID] = trim($field);
+					$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][TEXT] = trim($value);
+				}
+				if ($row['Field'] == $pk) {
+					$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][SHOWCOLUMN] = false;
+					$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][READONLY] = true;
+					$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][UPDATE_READ_ONLY] = true;
+					$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][$row['Field']][HIDE] = true;
+					continue;
+				}
+			}
+		}
+	}
+
 	function displayFieldsAJAX() {
 		ob_end_clean();
 		$conn = $this->connectDatabase($_GET['server'],$_GET['database']);
 		$fieldRows = $this->queryDatabase(sprintf(GET_COLUMNS_SQL,$_GET['table']),$conn);
 		echo "<select name=\"fields[".$_GET['k1']."][<FIELD_TOKEN>]\">";
 		foreach ($fieldRows as $fieldKey=>$fieldValue) {
+			echo "<option value=\"___distinct___lookup___".$fieldValue['Field']."\">" . $fieldValue['Field'] . " (Unique Values)</option>";
 			echo "<option value=\"".$fieldValue['Field']."\">" . $fieldValue['Field'] . "</option>";
 		}
 		echo "</select>";
 		$this->closeDatabase($conn);
 		exit;
 	}
-	 
+
 	#4 Step
 	function displayFieldSelectionForm() {
 		$conn = $this->connectDatabase($_GET['server'],$_GET['database']);
-		//print_r($this->currentAdminDB);die();
 		$database = $_GET['database'];
+
+		if (!$this->defaultConfigOverRide) {
+			$configPointer = $_GET['database']."_".$_GET['edit'];
+		} else {
+			if (isset($_GET['conf']) && $_GET['conf'] != $this->current_config) {
+				return;
+			}
+			$configPointer = $_REQUEST['tablePointer'];
+		}
 		$options .= "<tr>";
 		$options .= "<td>Field Name</td>";
 		foreach ($this->fieldConfigType as $type=>$text) {
@@ -2036,7 +2602,12 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			$options .= "<td>".$text['desc']."</td>";
 		}
 		$options .= "</tr>";
-		$fieldRows = $this->queryDatabase(sprintf(GET_COLUMNS_SQL,$_GET['edit']),$conn);
+		$table = $this->currentAdminDB[CRUD_FIELD_CONFIG][$_GET['edit']][TABLE_CONFIG][OBJECT_TABLE];
+		if (!$table) {
+			$table = $_GET['edit'];
+		}
+		$fieldRows = $this->queryDatabase(sprintf(GET_COLUMNS_SQL,$table),$conn);
+
 		foreach ($fieldRows as $fieldKey=>$fieldValue) {
 			$options .=  "
 				<tr id=\"".$fieldValue['Field']."_tr\">
@@ -2048,12 +2619,12 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				$extra = '';
 				$checked2 = '';
 				$extra2 = '';
-				
+
 				if ($key == "VALUE") {
 					$value;
 				}
-				
-				$value = $this->currentAdminDB[CRUD_FIELD_CONFIG][$_GET['database']."_".$_GET['edit']][$fieldValue['Field']."_config"][$key];
+
+				$value = $this->currentAdminDB[CRUD_FIELD_CONFIG][$configPointer][$fieldValue['Field']."_config"][$key];
 				if ($text['type'] == 'checkbox' && ($value === true || $value == '1')) {
 					$checked = 'checked';
 					$checked2 = 'On';
@@ -2062,16 +2633,16 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				} else if ($text['type'] == 'checkbox') {
 					$checked2 = "Off";
 				}
-				
+
 				if ($text['type'] == 'checkbox') {
 					$extra = "style='cursor:pointer;' onclick='toggleObj(\"fields_config[".$fieldValue['Field']."][$key]\")'";
 					$extra2 = "style='display:none;'";
 				}
-				
+
 				if ($text['type'] != 'link') {
 					$options .= "<td $extra><input $extra2 $extra type=\"$text[type]\" name=\"fields_config[".$fieldValue['Field']."][$key]\" id=\"fields_config[".$fieldValue['Field']."][$key]\" value=\"$value\" $checked/><span id=\"fields_config[".$fieldValue['Field']."][$key][onoff]\" class=\"".strtolower($checked2)."\">$checked2</span></td>";
 				} else {
-					$value = $this->currentAdminDB[CRUD_FIELD_CONFIG][$_GET['database']."_".$_GET['edit']][$fieldValue['Field']."_config"];
+					$value = $this->currentAdminDB[CRUD_FIELD_CONFIG][$configPointer][$fieldValue['Field']."_config"];
 
 					$autoObject = parent::parseColumnInfo($fieldValue['Type'],$fieldValue['Default'],$fieldValue['Field']);
 					$optionsObjectTypes = '<option>Select a Field Type</option>';
@@ -2085,7 +2656,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						}
 						if ($value['TYPE'] == $key2) {
 							$selected = "selected";
-						} elseif ($autoObject['TYPE'] == $key2) {
+						}
+						if ($autoObject['TYPE'] == $key2 && empty($value['TYPE'])) {
 							$selected = "selected";
 						}
 						$optionsObjectTypes .= "<option value=\"".$key2."\" $selected>".$text2['desc']."</option>";
@@ -2112,7 +2684,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 					if ($noneAvailable===true) {
 						$optionsValidationTypes .= "<option>There are no Validation Rules Available</option>";
 					}
-					
+
 					$noneAvailable = true;
 					$optionsEventTypes = '<option>Add A New Javascript Event</option>';
 					foreach ($this->fieldEventTypes as $key2=>$text2) {
@@ -2123,11 +2695,12 @@ class cruddyMysqlAdmin extends cruddyMysql {
 					if ($noneAvailable===true) {
 						$optionsEventTypes .= "<option>There are no Events Left</option>";
 					}
-					
-					$existingEntriesTop = '<td valign="top">Edit:</td>';
-					$existingEntriesBottom = '<td valign="top"></td>';
-					if (is_array($value) && sizeof($value) > 0) {
-						foreach ($value as $optionKey=>$optionValue) {
+					$attributes = $value;
+					unset($attributes['TYPE']);
+					if (is_array($attributes) && sizeof($attributes) > 0) {
+						$existingEntriesTop = '<td valign="top">Edit:</td>';
+						$existingEntriesBottom = '<td valign="top"></td>';
+						foreach ($attributes as $optionKey=>$optionValue) {
 							if ($optionKey == 'TYPE') {
 								continue;
 							}
@@ -2141,7 +2714,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 								$desc = $this->fieldEventTypes[$optionKey]['desc'];
 								$type = "textarea";
 							}
-							
+
 							$checked = '';
 							$value = '';
 							$extra = '';
@@ -2155,12 +2728,12 @@ class cruddyMysqlAdmin extends cruddyMysql {
 							} else if ($type == 'checkbox') {
 								$checked2 = "Off";
 							}
-							
+
 							if ($type == 'checkbox') {
 								$extra = "style='cursor:pointer;' onclick='toggleObj(\"fields_config[".$fieldValue['Field']."][$optionKey]\")'";
 								$extra2 = "style='display:none;'";
 							}
-							
+
 							$existingEntriesTop .= "<td valign=\"top\"><span id=\"".$fieldValue['Field'].$optionKey."_top\">$desc:</td>";
 							$deleteButton = "<a style='cursor:pointer;' class='button' onclick='$(\"fields_config[".$fieldValue['Field']."][$optionKey]\").style.display = \"none\";$(\"fields_config[".$fieldValue['Field']."][$optionKey]\").value = \"!!DELETE_TOKEN!!\";this.style.display=\"none\";$(\"".$fieldValue['Field'].$optionKey."_top\").style.textDecoration = \"line-through\";$(\"".$fieldValue['Field'].$optionKey."_top\").style.color = \"red\";'><span>Delete</span></a>";
 							if ($type != 'textarea') {
@@ -2178,19 +2751,21 @@ class cruddyMysqlAdmin extends cruddyMysql {
 							}
 						}
 					} else {
-						$existingEntriesTop = "<-- Select an option to Add New Behaviors";
+						$existingEntriesTop = "";
 					}
 					$extra = "style='cursor:pointer;' onclick='toggleObj(\"fields_config[".$fieldValue['Field']."][$optionKey]\")'";
 					$extra2 = "style='display:none;'";
 					$options .= "
 							 <td>
-								<a onclick=\"addRow('".$fieldValue['Field']."_tr','".$fieldValue['Field']."_span',this);\" style=\"cursor:pointer;\">Configure</a>
-								<span id=\"".$fieldValue['Field']."_span_copy\" style=\"display:none;\">
-									<h3>".$fieldValue['Field']." config</h3>
+								<!--<a onclick=\"addRow('".$fieldValue['Field']."_tr','".$fieldValue['Field']."_span',this);\" style=\"cursor:pointer;\">Configure</a>-->
+								<div style=\"float:left\" id=\"".$fieldValue['Field']."_span_copy\" >
+									<h3 style=\"margin:0px\">".$fieldValue['Field']." control</h3>
 									<table style=\"border:none;\">
 										<tr>
 											<td>Input Type:</td>
-											<td> <select  name=\"fields_config[".$fieldValue['Field']."][TYPE]\" id=\"fields_config[".$fieldValue['Field']."][TYPE]\">
+											<td>
+												<span id=\"additionalParameters\"></span>
+												<select name=\"fields_config[".$fieldValue['Field']."][TYPE]\" id=\"fields_config[".$fieldValue['Field']."][TYPE]\" onchange=\"handleWidgetChange(this,'{$fieldValue['Field']}')\">
 													$optionsObjectTypes
 												</select>
 											</td>
@@ -2217,9 +2792,9 @@ class cruddyMysqlAdmin extends cruddyMysql {
 											</td>
 										</tr>
 									</table>
-								</span>
-								<span id=\"".$fieldValue['Field']."_span_copy2\" style=\"display:none;\">
-									<table style=\"height:179px;border:none;\">
+								</div>
+								<div style=\"float:left\" id=\"".$fieldValue['Field']."_span_copy2\">
+									<table style=\"border:none;\">
 										<tr>
 											<td valign=\"top\" style=\"display:none;\" id=\"".$fieldValue['Field']."_new\"></td>
 											<td>
@@ -2233,8 +2808,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 												</table>
 										</td>
 										</tr>
-								</table>
-								</span>
+                                                                        </table>
+								</div>
 							 </td>";
 					}
 				}
@@ -2245,17 +2820,17 @@ class cruddyMysqlAdmin extends cruddyMysql {
 					$extra = '';
 					$checked2 = '';
 					$extra2 = '';
-					if (!isset($this->currentAdminDB[CRUD_FIELD_CONFIG][$_GET['database']."_".$_GET['edit']][$fieldValue['Field']][$key])) {
+					if (!isset($this->currentAdminDB[CRUD_FIELD_CONFIG][$configPointer][$fieldValue['Field']][$key]) && !isset($this->currentAdminDB[CRUD_FIELD_CONFIG][$configPointer][TABLE_CONFIG]['configuredfields'])) {
 						// -- pull from default
 						$value = $this->fieldControlDefaults[$key];
 						if ($key == CAPTION) {
-							$value = str_replace(array('_','-'),array(' ',' '),ucfirst($tableName));
+							$value = str_replace(array('_','-'),array(' ',' '),ucfirst($fieldValue['Field']));
 						}
+
 						$value = $this->createDisplayName($value);
-					} else {
-						$value = $this->currentAdminDB[CRUD_FIELD_CONFIG][$_GET['database']."_".$_GET['edit']][$fieldValue['Field']][$key];
+					} elseif (isset($this->currentAdminDB[CRUD_FIELD_CONFIG][$configPointer][$fieldValue['Field']][$key])) {
+						$value = $this->currentAdminDB[CRUD_FIELD_CONFIG][$configPointer][$fieldValue['Field']][$key];
 					}
-					
 					if ($text['type'] == 'checkbox' && ($value === true || $value == '1')) {
 						$checked = 'checked';
 						$checked2 = 'On';
@@ -2264,7 +2839,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 					} else if ($text['type'] == 'checkbox') {
 						$checked2 = "Off";
 					}
-				
+
 					if ($text['type'] == 'checkbox') {
 						$extra = "style='cursor:pointer;' onclick='toggleObj(\"fields[".$fieldValue['Field']."][$key]\")'";
 						$extra2 = "style='display:none;'";
@@ -2293,7 +2868,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 										$selected = "selected";
 									 }
 									 $optionsFieldsTables .= "<option $selected value=\"$tableName\">$tableName</option>";
-								}	
+								}
 							}
 							$input = "<select onchange=\"lookupFieldsFromTable(this.value,'$_GET[server]','$_GET[database]','$fieldValue[Field]','$key');\" name=\"fields[".$fieldValue['Field']."][$key]\" id=\"fields[".$fieldValue['Field']."][$key]\">$optionsFieldsTables</select>";
 						} else {
@@ -2306,9 +2881,14 @@ class cruddyMysqlAdmin extends cruddyMysql {
 									$input .= "<select name=\"fields[$fieldValue[Field]][$key]\">";
 									foreach ($fieldRows2 as $fieldKey2=>$fieldValue2) {
 										$selected = "";
+										$selected2 = "";
 										if ($value == $fieldValue2['Field']) {
 											$selected = "selected";
 										}
+										if ($value == "___distinct___lookup___".$fieldValue2['Field']) {
+											$selected2 = "selected";
+										}
+										$input .=  "<option $selected2 value=\"___distinct___lookup___".$fieldValue2['Field']."\">".$fieldValue2['Field']." (Distinct Values)</option>";
 										$input .=  "<option $selected value=\"".$fieldValue2['Field']."\">" . $fieldValue2['Field'] . "</option>";
 									}
 									$input .=  "</select></span>";
@@ -2316,23 +2896,59 @@ class cruddyMysqlAdmin extends cruddyMysql {
 							}
 						}
 					} else {
-						$input = "<input $extra2 $extra type=\"$text[type]\" name=\"fields[".$fieldValue['Field']."][$key]\" id=\"fields[".$fieldValue['Field']."][$key]\" value=\"$value\" $checked/><span id=\"fields[".$fieldValue['Field']."][$key][onoff]\" class=\"".strtolower($checked2)."\">$checked2</span>";	
+						$input = "<input $extra2 $extra type=\"$text[type]\" name=\"fields[".$fieldValue['Field']."][$key]\" id=\"fields[".$fieldValue['Field']."][$key]\" value=\"$value\" $checked/><span id=\"fields[".$fieldValue['Field']."][$key][onoff]\" class=\"".strtolower($checked2)."\">$checked2</span>";
 					}
 					$options .= "<td $extra>$input</td>";
 				}
 				echo "</tr>";
 			}
-			echo 
+
+			$i=0;
+			if (is_array($this->currentAdminDB[CRUD_FIELD_CONFIG])) {
+				foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG] as $values) {
+					$sameFields[$i++] = array_keys($values);
+				}
+			}
+
+			$break=false;
+			if (is_array($sameFields)) {
+				foreach ($sameFields as $key=>$array) {
+					foreach ($sameFields as $key2=>$array2) {
+						if ($key!=$key2) {
+							if ($array == $array2) {
+								$recurseOnOff =
+								"<input style='display: none;' onclick='toggleObj('recurse')' name='recurse' id='recurse' value='0' checked='checked' type='checkbox'><span id='recurse[onoff]' class='off' onclick=\"toggleObj('recurse');\">Off</span> (Sync off because exact table mapping would overwrite another config)";
+								$break=true;
+								break;
+							}
+						}
+					}
+					if ($break===true) {
+						break;
+					}
+				}
+			}
+			if ($break===false) {
+				$recurseOnOff =
+				"<input style='display: none;' onclick='toggleObj('recurse')' name='recurse' id='recurse' value='1' checked='checked' type='checkbox'><span id='recurse[onoff]' class='on' onclick=\"toggleObj('recurse');\">On</span>";
+			}
+
+			if (!$this->defaultConfigOverRide) {
+				$recurse = "<br/>";
+				//$recurse = "(<span style=\"cursor:pointer;\" onclick=\"toggleObj('recurse');\">Sync To Same Name Fields In Other Tables? </span>$recurseOnOff)";
+			} else {
+				$recurse = "<br/>";
+			}
+			echo
 			"
 			<script>
-				var msgDebug = false;
-			function insertAfter( referenceNode, newNode )
-			{
+			var msgDebug = false;
+			function insertAfter( referenceNode, newNode ) {
 				referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 			}
 
 			function addRow(id,spanid,obj){
-				 obj.onclick='';
+				obj.onclick='';
 				var tbody = document.getElementById(id);
 				var row = document.createElement('TR');
 				var td1 = document.createElement('TD');
@@ -2352,48 +2968,91 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				$(spanid + \"_copy\").innerHTML = \"\";
 				$(spanid + \"_copy2\").innerHTML = \"\";
 			}
-			
+
 			function addTD(id,spanid){
 				var tbody = document.getElementById(id);
 				var td1 = document.createElement('TD');
 				td1.vAlign = 'top';
+				td1.style.borderRight = '2px solid black';
 				var span = document.createElement('span');
 				span.id = spanid;
 				td1.appendChild(span);
 				insertAfter(tbody,td1);
 			}
-			
+
+			function handleWidgetChange(obj,name) {
+				if (obj.value == 'file') {
+					var response = window.prompt(\"Please enter the path for the files to upload\",\"../uploads/\");
+					$('additionalParameters').innerHTML += \"<input name='fields_config[\" + name + \"][MOVE_TO]' id='fields_config[\" + name + \"][MOVE_TO]' value='\" + response + \"'/>\";
+				}
+			}
+
 			function onChangeValidations(id,obj) {
-			addTD(id + '_new',id + '_' + obj.value);
-			$(id + '_' + obj.value).innerHTML = obj.options[obj.selectedIndex].text + ':<br/><input type=hidden name=fields_config[' + id + '][' + obj.value + '] value=true><span class=on>On</span>';
-			
-			if (obj.value == 'ValidateMinimumLength') {
-				$(id + '_' + obj.value).innerHTML = obj.options[obj.selectedIndex].text + ':<br/><input type=text name=fields_config[' + id + '][' + obj.value + ']'; 
+				addTD(id + '_new',id + '_' + obj.value);
+				$(id + '_' + obj.value).innerHTML = obj.options[obj.selectedIndex].text + ':<br/><input type=hidden name=fields_config[' + id + '][' + obj.value + '] value=true><span class=on>On</span>';
+
+				if (obj.value == 'ValidateMinimumLength') {
+					$(id + '_' + obj.value).innerHTML = obj.options[obj.selectedIndex].text + ':<br/><input type=text name=fields_config[' + id + '][' + obj.value + ']';
+				}
+				$(id + '_' + obj.value).innerHTML += '<br/><br/>Error Message:<br/><input type=text name=fields_config[' + id + '][' + obj.value + 'ErrorMessage]';
+				obj.removeChild(obj[obj.selectedIndex]);
 			}
-			$(id + '_' + obj.value).innerHTML += '<br/><br/>Error Message:<br/><input type=text name=fields_config[' + id + '][' + obj.value + 'ErrorMessage]'; 
-			obj.removeChild(obj[obj.selectedIndex]);
-			}
+
 			</script>
-			<form action='index.php?admin=1&select_fields=1&store_database=1' id='tableForm' method='post'>
+			<form action='".$_SERVER['PHP_SELF']."?admin=1&select_fields=1&store_database=1' id='tableForm{$_GET['edit']}' method='post'>
 				".$this->displayGenericObjects()."
-				 <div id='serverinfo'> 
-						Field Configuration
+				 <div id='serverinfo'>
+				      <strong>{$_GET['edit']}</strong> Field Configuration
 						$errors
-					<input type=\"hidden\" name=\"tablePointer\" value=\"".$_GET['database']."_".$_GET['edit']."\"/>
+						<input type=\"hidden\" name=\"tablePointer\" value=\"".$configPointer."\"/>
 						<table style='width:1500px;'>
 									$options
 						</table>
-						<a class='button' onclick='$(\"tableForm\").submit();'><span>Configure Fields</span></a>  (<span style=\"cursor:pointer;\" onclick=\"toggleObj('recurse');\">Sync To Same Name Fields In Other Tables? </span><input style='display: none;' onclick='toggleObj('recurse')' name='recurse' id='recurse' value='1' checked='checked' type='checkbox'><span id='recurse[onoff]' class='on' onclick=\"toggleObj('recurse');\">On</span>)
+						<a class='button' onclick='$(\"tableForm{$_GET['edit']}\").action= $(\"tableForm{$_GET['edit']}\").action + \"&conf=$this->current_config\";$(\"tableForm{$_GET['edit']}\").submit();'><span>Configure Fields</span></a>  $recurse
 				 </div>
 			</form>
 			";
 			$this->closeDatabase($conn);
 	}
-				 
+
 	function storeFieldSelectionForm() {
 		ob_end_clean();
+
+		if ($this->defaultConfigOverRide) {
+			if ($_GET['conf'] != $this->current_config) {
+				return;
+			}
+			foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']] as $k=>$v) {
+				if ($k!=TABLE_CONFIG) {
+					unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$k]);
+				}
+			}
+		}
+
+		$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG]['configuredfields'] = '1';
+		if (!isset($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG][OBJECT_ACTIONS])) {
+			//default data in step 2 is not set
+			$conn = $this->connectDatabase($_GET['server'],$_GET['database']);
+			foreach ($this->tableControlDefaults as $systemKey=>$text) {
+				$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG][$systemKey] = $text;
+			}
+			$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG][OBJECT_ACTIONS] = $this->tableControlDefaults[OBJECT_ACTIONS];
+			$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG][OBJECT_TABLE] = $_REQUEST['tablePointer'];
+			$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG][OBJECT_DESC] = $this->createDisplayName($_REQUEST['tablePointer']);
+			$resultPK = $this->getPrimaryKey($_GET['database'],$_REQUEST['tablePointer'],$conn);
+			$pk = $resultPK[0]['column_name'];
+			$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG][OBJECT_PK] = $pk;
+			$linkEdit = "?action=".strtolower($this->actionTypes['update'].$_REQUEST['tablePointer'])."&".$pk."=%".$pk."%";
+			$linkDelete = "?action=".strtolower($this->actionTypes['delete'].$_REQUEST['tablePointer'])."&".$pk."=%".$pk."%";
+			$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG][EDIT_LINK] = $linkEdit;
+			$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG][DELETE_LINK] = $linkDelete;
+			$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][TABLE_CONFIG][OTHER_LINKS] = "";
+			$this->addDefaultFieldData($_REQUEST['tablePointer'],$conn,$_REQUEST['tablePointer']);
+			$this->closeDatabase($conn);
+		}
+
 		$deleteToken = '!!DELETE_TOKEN!!';
-		foreach ($_REQUEST['fields'] as $key=>$selected) {   		
+		foreach ($_REQUEST['fields'] as $key=>$selected) {
 			foreach ($this->fieldControlType as $systemKey=>$text) {
 				if ($_REQUEST['fields'][$key][$systemKey]) {
 					if ($_REQUEST['fields'][$key][$systemKey] != $deleteToken) {
@@ -2449,53 +3108,52 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2]);
 					}
 				}
-				}
-				foreach ($this->fieldEventTypes as $key2=>$text2) {
-					if ($_REQUEST['fields_config'][$key][$key2]) {
-						if ($_REQUEST['fields_config'][$key][$key2] != $deleteToken) {
-							$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2] = $_REQUEST['fields_config'][$key][$key2];
-						} else {
-							unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2]);
-						}
-					}
-				}
-				
-				foreach ($this->fieldConfigType as $key2=>$text2) {
-					if ($_REQUEST['fields_config'][$key][$key2]) {
-						if ($_REQUEST['fields_config'][$key][$key2] != $deleteToken) {
-							$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2] = $_REQUEST['fields_config'][$key][$key2];
-						} else {
-							unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2]);
-						}
+			}
+			foreach ($this->fieldEventTypes as $key2=>$text2) {
+				if ($_REQUEST['fields_config'][$key][$key2]) {
+					if ($_REQUEST['fields_config'][$key][$key2] != $deleteToken) {
+						$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2] = $_REQUEST['fields_config'][$key][$key2];
 					} else {
 						unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2]);
 					}
 				}
 			}
-			
-			if ($_REQUEST['recurse'] == 1) {
-				foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']] as $key=>$fieldConfigs) {
-					if ($key == 'tableDef') {continue;}
-					foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG] as $section=>$configs) {
-						foreach ($configs as $fieldOption=>$options) {
-							if ($fieldOption == 'tableDef') {continue;}
-							if ($fieldOption == $key) {
-								$this->currentAdminDB[CRUD_FIELD_CONFIG][$section][$fieldOption] = $fieldConfigs;
-							}
+
+			foreach ($this->fieldConfigType as $key2=>$text2) {
+				if ($_REQUEST['fields_config'][$key][$key2]) {
+					if ($_REQUEST['fields_config'][$key][$key2] != $deleteToken) {
+						$this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2] = $_REQUEST['fields_config'][$key][$key2];
+					} else {
+						unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2]);
+					}
+				} else {
+					unset($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']][$key."_config"][$key2]);
+				}
+			}
+		}
+
+		if ($_REQUEST['recurse'] == 1) {
+			foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG][$_REQUEST['tablePointer']] as $key=>$fieldConfigs) {
+				if ($key == 'tableDef') {continue;}
+				foreach ($this->currentAdminDB[CRUD_FIELD_CONFIG] as $section=>$configs) {
+					foreach ($configs as $fieldOption=>$options) {
+						if ($fieldOption == 'tableDef') {continue;}
+						if ($fieldOption == $key) {
+							$this->currentAdminDB[CRUD_FIELD_CONFIG][$section][$fieldOption] = $fieldConfigs;
 						}
 					}
 				}
 			}
-			
-			$this->writeAdminDB();
-			if (!isset($_COOKIE['redirect'])) {
-				header("Location: ".$_SERVER['PHP_SELF']);
-			} else {
-				header("Location: ".$_COOKIE['redirect']);
-			}
-			exit;
+		}
+		$this->writeAdminDB();
+		if (!isset($_COOKIE['redirect']) || $this->currentAdminDB['crud']['completed_step'] != 'All') {
+			$this->redirect($_SERVER['PHP_SELF']);
+		} else {
+			$this->redirect($_COOKIE['redirect']);
+		}
+		exit;
 	}
-	
+
 
 	#5 Step
 	function displayGroupSelectionForm() {
@@ -2508,9 +3166,9 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				$groupHash[$database] = $key;
 				foreach ($value as $table) {
 					$i++;
-					$groupedVariables[$database][$table]['group_name'] = $database; 
-					$groupedVariables[$database][$table]['option_value'] = $table; 
-					$groupedVariables[$database][$table]['option_desc'] = $table; 
+					$groupedVariables[$database][$table]['group_name'] = $database;
+					$groupedVariables[$database][$table]['option_value'] = $table;
+					$groupedVariables[$database][$table]['option_desc'] = $table;
 					unset($list[$table]);
 				}
 			}
@@ -2522,9 +3180,9 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				$parts = explode("/",$value[TABLE_CONFIG][OBJECT_CONNECTION_STRING]);
 				$database = $parts[sizeof($parts)-1];
 				$groupHash[$database] = $key;
-				$groupedVariables[$database][$key]['group_name'] = $database; 
-				$groupedVariables[$database][$key]['option_value'] = $key; 
-				$groupedVariables[$database][$key]['option_desc'] = $key; 
+				$groupedVariables[$database][$key]['group_name'] = $database;
+				$groupedVariables[$database][$key]['option_value'] = $key;
+				$groupedVariables[$database][$key]['option_desc'] = $key;
 				unset($list[$key]);
 			}
 		}
@@ -2538,7 +3196,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		if (is_array($list)) {
 			foreach ($list as $key=>$value) {
 				$variableOptions .= "<option value='$key'>".$key."</option>";
-			}      	
+			}
 		}
 
 		if (is_array($groupHash)) {
@@ -2556,7 +3214,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				<td>
 					Name: <input type="text" name="groupName['.$hash.'][name]" value="'.$hashText.'" style="width:115px"/><br/><br/>
 					<select name="groupName['.$hash.'][]" id="groupName['.$hash.']" multiple="multiple" size="10" ondblclick="moveSelectedOptions($(\'groupName['.$hash.']\'),$(\'GroupMain\'),false);$(\'GroupMain\').style.display = \'block\';" title="Double Click to Remove" style="width:175px">';
-				
+				$turnOnGroups .= 'moveSelectedOptions($(\'groupName['.$hash.']\'),$(\'GroupMain\'),false);';
 				foreach ($groupedVariables as $hashKey => $valuesArray) {
 					if ($hash == $hashKey) {
 						foreach ($valuesArray as $k=>$v) {
@@ -2575,7 +3233,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$genericObjects = $this->displayGenericObjects();
 		echo <<<EOD
 			Step 4: Table Groups (Organize Things Logically)
-			<form action='index.php?admin=1&select_groups=1&store_database=1' name='tableForm' id='tableForm' method='post'>
+			<form action='{$_SERVER['PHP_SELF']}?admin=1&select_groups=1&store_database=1' name='tableForm' id='tableForm' method='post'>
 			$genericObjects
 			<table>
 			<tbody>
@@ -2604,13 +3262,14 @@ class cruddyMysqlAdmin extends cruddyMysql {
 								}
 							}
 						}
+						$('tableForm').action= $('tableForm').action + '&conf=$this->current_config';
 						document.tableForm.submit();
 						"><span>Save Groupings</span></a>
-						<span style="cursor:pointer;" onclick="toggleObj('showGroups');">Group Tables By Default (Loads Faster)</span><input style='display: none;' onclick='toggleObj("showGroups")' name='showGroups' id='showGroups' value='$defaultGroup' checked='checked' type='checkbox'><span id='showGroups[onoff]' class='on' onclick="toggleObj('showGroups');">$defaultGroupTxt</span>
+						<span style="cursor:pointer;" onclick="toggleGroupings();$turnOnGroups">Group Tables</span><input style='display: none;' onclick=\"toggleGroupings();$turnOnGroups\" name='showGroups' id='showGroups' value='$defaultGroup' checked='checked' type='checkbox'><span id='showGroups[onoff]' class='on' onclick="toggleGroupings();$turnOnGroups">$defaultGroupTxt</span>
 		</form>
 EOD;
 	}
-			
+
 	function storeGroupSelectionForm() {
 		if ($this->currentAdminDB['crud']['completed_step'] != 'All') {
 			$this->currentAdminDB['crud']['completed_step'] = 4;
@@ -2631,14 +3290,14 @@ EOD;
 		$this->currentAdminDB['crud']['groups'] =  $_POST['groupName'];
 		$this->currentAdminDB['crud']['group_tables'] =  $_POST['showGroups'];
 		$this->writeAdminDB();
-		if (!isset($_COOKIE['redirect'])) {
-			header("Location: ".$_SERVER['PHP_SELF']."?admin=1&select_roles");
+		if (!isset($_COOKIE['redirect']) || $this->currentAdminDB['crud']['completed_step'] != 'All') {
+			$this->redirect($_SERVER['PHP_SELF']."?admin=1&select_roles");
 		} else {
-			header("Location: ".$_COOKIE['redirect']);
+			$this->redirect($_COOKIE['redirect']);
 		}
 		exit;
 	}
-			
+
 	#6 Step
 	function displayRolesSelectionForm() {
 		$groupOptions = "<select TOKN2 name=\"role[TOKEN][groups][]\" multiple=\"multiple\" size=\"5\">";
@@ -2648,7 +3307,7 @@ EOD;
 			}
 			$groupOptions .= "</select>";
 		}
-		
+
 		if (!isset($_GET['edit'])) {
 			if (isset($this->currentAdminDB['crud']['roles'] )) {
 				die('<script>document.location = "'.$_SERVER['PHP_SELF'].'?admin=1&select_roles=1&edit=true";</script>');
@@ -2688,7 +3347,7 @@ EOD;
 		} else {
 			$i=0;
 			foreach ($this->currentAdminDB['crud']['roles'] as $roleID=>$roleObject) {
-				
+
 				if (!isset($roleObject['admin_role'])) {
 					$adminRoleValue = 0;
 					$adminRoleChecked = '';
@@ -2763,10 +3422,10 @@ EOD;
 							$i++;
 			}
 		}
-			echo 
+			echo
 			"
 			Step 5: Setup Roles
-			<form action='index.php?admin=1&select_roles=1&store_database=1' name='tableForm' id='tableForm' method='post'>
+			<form action='".$_SERVER['PHP_SELF']."?admin=1&select_roles=1&store_database=1' name='tableForm' id='tableForm' method='post'>
 				<input id=\"totalRoles\" type=\"hidden\" value=\"$i\"/>
 				".$this->displayGenericObjects()."
 					 <table id='allroles'>
@@ -2785,23 +3444,23 @@ EOD;
 					 <button type=\"button\" onclick=\"cloneRow('cloner');$('cloner_name').value='NewRoleName';changeClonerNames();\"><span style=\"font-size:1.4em;padding-bottom:10px;cursor:pointer;\" >Add Another Role</span> <img src=\"".PUBLIC_CRUD_CLASS_LOCATION."images/db_add.png\"/></button>
 					 <br/>
 				<br/>
-					 <a class='button' onclick='$(\"tableForm\").submit();'><span>Create Roles</span></a>
+					 <a class='button' onclick='$(\"tableForm\").action= $(\"tableForm\").action + \"&conf=$this->current_config\";$(\"tableForm\").submit();'><span>Create Roles</span></a>
 				 </form>
 			";
 	}
-	
-	
+
+
 	function storeRolesSelectionForm() {
 		if ($this->currentAdminDB['crud']['completed_step'] != 'All') {
 			$this->currentAdminDB['crud']['completed_step'] = 5;
 		}
 		ob_end_clean();
-		$this->currentAdminDB['crud']['roles'] = $_POST['role'];      
+		$this->currentAdminDB['crud']['roles'] = $_POST['role'];
 		$this->writeAdminDB();
-		if (!isset($_COOKIE['redirect'])) {
-			header("Location: ".$_SERVER['PHP_SELF']."?admin=1&select_users");
+		if (!isset($_COOKIE['redirect']) || $this->currentAdminDB['crud']['completed_step'] != 'All') {
+			$this->redirect($_SERVER['PHP_SELF']."?admin=1&select_users");
 		} else {
-			header("Location: ".$_COOKIE['redirect']);
+			$this->redirect($_COOKIE['redirect']);
 		}
 		exit;
 	}
@@ -2815,7 +3474,7 @@ EOD;
 			}
 			$groupOptions .= "</select>";
 		}
-		
+
 		if (!isset($_GET['edit'])) {
 			if (isset($this->currentAdminDB['crud']['users'])) {
 				die('<script>document.location = "'.$_SERVER['PHP_SELF'].'?admin=1&select_users=1&edit=true";</script>');
@@ -2840,7 +3499,7 @@ EOD;
 					$id1="id='$i'";
 					$id0=$i;
 				}
-				
+
 				$groupOptions = "<select $id8 class='admin' TOKN2 name=\"user[TOKEN][role]\">";
 				if (isset($this->currentAdminDB['crud']['roles'])) {
 					foreach ($this->currentAdminDB['crud']['roles'] as $k=>$v) {
@@ -2862,7 +3521,7 @@ EOD;
 							$i++;
 			}
 		}
-			echo 
+			echo
 			"
 			Step 6: Setup Users
 			<form action='$_SERVER[PHP_SELF]?admin=1&select_users=1&store_database=1' name='tableForm' id='tableForm' method='post'>
@@ -2880,31 +3539,31 @@ EOD;
 					 <button type=\"button\" onclick=\"cloneRow('cloner');changeClonerUserNames();\"><span style=\"font-size:1.4em;padding-bottom:10px;cursor:pointer;\" >Add Another User</span> <img src=\"".PUBLIC_CRUD_CLASS_LOCATION."images/db_add.png\"/></button>
 					 <br/>
 				<br/>
-					 <a class='button' onclick='if (window.confirm(\"Please ensure you have a user setup with the CRUDDY admin role.  Dont forget your passwords!\")){ $(\"tableForm\").submit();}'><span>Create Users</span></a>
+					 <a class='button' onclick='if (window.confirm(\"Please ensure you have a user setup with the Super Admin admin role.  Dont forget your passwords!\")){ $(\"tableForm\").action= $(\"tableForm\").action + \"&conf=$this->current_config\"; $(\"tableForm\").submit();}'><span>Create Users</span></a>
 				 </form>
 			";
 	}
-	
-	
+
+
 	function storeUserSelectionForm() {
 		if ($this->currentAdminDB['crud']['completed_step'] != 'All') {
 			$this->currentAdminDB['crud']['completed_step'] = 6;
 		}
 		ob_end_clean();
-		$this->currentAdminDB['crud']['users'] = $_POST['user'];      
+		$this->currentAdminDB['crud']['users'] = $_POST['user'];
 		$this->writeAdminDB();
-		if (!isset($_COOKIE['redirect'])) {
-			header("Location: ".$_SERVER['PHP_SELF']."?admin=1&select_theme");
+		if (!isset($_COOKIE['redirect']) || $this->currentAdminDB['crud']['completed_step'] != 'All') {
+			$this->redirect($_SERVER['PHP_SELF']."?admin=1&select_theme");
 		} else {
-			header("Location: ".$_COOKIE['redirect']);
+			$this->redirect($_COOKIE['redirect']);
 		}
 		exit;
 	}
-	 
+
 	#8 Step
 	function displayThemeSelectionForm() {
 		echo $this->displayGenericObjects();
-		
+
 		if ($_GET['edit']) {
 			$currentTheme = $_GET['edit'];
 		} elseif (isset($this->currentAdminDB['crud']['theme'])) {
@@ -2912,10 +3571,10 @@ EOD;
 		} else {
 			$currentTheme = 'Default Cruddy MySql';
 		}
-		
-		echo 
+
+		echo
 			"
-			<div id='serverinfo'> 
+			<div id='serverinfo'>
 				 Final Step 7: Themes... Yum
 				 <table>
 						<tr>
@@ -2929,23 +3588,24 @@ EOD;
 			</div>
 			";
 	}
-	
+
 	function storeThemeSelectionForm() {
+		/*if ($this->defaultConfigOverRide) {
+			if ($_GET['conf'] != $this->current_config) {
+				return;
+			}
+		}*/
 		$this->currentAdminDB['crud']['completed_step'] = 'All';
 		ob_end_clean();
 		$this->currentAdminDB['crud']['theme'] = $_GET['theme'];
 		$this->writeAdminDB();
 		exit;
-	}  
-	
-	
+	}
 
-	
-	
 	function cleanTableNames($tableName) {
 		return str_replace(" ","_",$tableName);
 	}
-	 
+
 	function displayGenericObjects() {
 		$ret = "<span id='results'></span>";
 		if (isset($_GET['edit'])) {
@@ -2953,7 +3613,7 @@ EOD;
 		}
 		return $ret;
 	}
-	 
+
 	function adminDBExists() {
 		if (file_exists($this->adminFile)) {
 			return true;
@@ -2961,15 +3621,31 @@ EOD;
 			return false;
 		}
 	}
-	 
+
+	function productionizeAdminDB() {
+		if (isset($_GET['conf']) && $_GET['conf'] != $this->current_config) {
+			return;
+		}
+		echo "<div class='success'>$this->adminFile has been productionizedinto a secure read only php array.<br/><a href=\"javascript:history.go(-1);\">(Click Here To Go Back)</a></div>";
+		$this->writeAdminDB("<?php\n\n\$cruddyMysqlConfiguration  = ".var_export($this->currentAdminDB,true).";\n\n?>");
+	}
+
 	function readAdminDB() {
 		$array = file_get_contents($this->adminFile);
 		$newArray = unserialize($array);
+		if ($newArray === false) {
+			// -- assuming you have productionized your config array into a secure array configuration
+			include($this->adminFile);
+			$newArray = $cruddyMysqlConfiguration;
+			$this->isProductionized = true;
+		} else {
+			$this->isProductionized = false;
+		}
 		$newArray['crud']['console_name'] = stripslashes($newArray['crud']['console_name']);
 		//$this->processAssociativeArray($newArray[CRUD_FIELD_CONFIG],"\$assocArray[\$n] = stripslashes(\$v);");
 		return $newArray;
 	}
-	 
+
 	function processAssociativeArray(&$assocArray,$phpCode) {
 		if (is_array($assocArray)) {
 			foreach ($assocArray as $n => $v) {
@@ -2984,12 +3660,16 @@ EOD;
 		}
 	}
 
-	 
-	function writeAdminDB() {
+
+	function writeAdminDB($stream='') {
 		if (get_magic_quotes_gpc()) {
 			$array = $this->processAssociativeArray($this->currentAdminDB,"\$assocArray[\$n] = stripslashes(\$v);");
 		}
-		$data = serialize($this->currentAdminDB);
+		if ($stream=='') {
+			$data = serialize($this->currentAdminDB);
+		} else {
+			$data = $stream;
+		}
 		if (!$handle = @fopen($this->adminFile, 'w')) {
 			@chmod(getcwd(),'755');
 			if (!$handle = @fopen($this->adminFile, 'w')) {
@@ -3001,7 +3681,7 @@ EOD;
 		}
 		fclose($handle);
 	}
-	 
+
 	function writeFile($file,$data) {
 		if (!$handle = @fopen($file, 'w')) {
 			$this->handleErrors("Cannot open file ($this->adminFile)","fatal");
@@ -3009,23 +3689,23 @@ EOD;
 		if (fwrite($handle, $data) === FALSE) {
 			$this->handleErrors("Could not write to file","fatal");
 		}
-		fclose($handle);   
+		fclose($handle);
 	}
-	 
+
 	function handleErrors($message,$level='fatal') {
 		echo "<br/>".$message;
 		if ($level=='fatal'){exit;}
 	}
-	 
+
    function displayGlobalCSS() {
       return PUBLIC_CRUD_CLASS_LOCATION.'styles/cruddy_mysql.css';
    }
-	 
+
 	function displayThemeCSS($returnCSS=true) {
 		$crudStyles['templates']['Default Cruddy MySql'] = PUBLIC_CRUD_CLASS_LOCATION.'styles/default.css';
 		$crudStyles['templates']['Blue Gradient']        = PUBLIC_CRUD_CLASS_LOCATION.'styles/blue_gradient.css';
 		$crudStyles['templates']['Casablanca']           = PUBLIC_CRUD_CLASS_LOCATION.'styles/casablanca.css';
-		
+
 		$crudStyles['templates']['Coffee with milk']     = PUBLIC_CRUD_CLASS_LOCATION.'styles/coffee.css';
 		$crudStyles['templates']['Cusco Sky']            = PUBLIC_CRUD_CLASS_LOCATION.'styles/cusco.css';
 		$crudStyles['templates']['Grey Scale']           = PUBLIC_CRUD_CLASS_LOCATION.'styles/grey_scale.css';
@@ -3042,14 +3722,17 @@ EOD;
 				return $crudStyles['templates']['Default Cruddy MySql'];
 			}
 		} else {
-			$selectBox = "<select class='admin' name='theme' id='theme'>";
+			$selectBox = "
+			<select class='admin' name='theme' id='theme'>
+			<option value='None'>None</option>
+			";
 			foreach ($crudStyles['templates'] as $key=>$nothing) {
 				$selected=""; if ($key == $returnCSS) {$selected="selected";}
 				$selectBox .="<option $selected value=\"$key\">$key</option>";
 			}
 			$selectBox .= "</select>";
 			return $selectBox;
-		} 
+		}
 		unset($crudStyles);
 	}
 }
@@ -3145,6 +3828,6 @@ class cruddyMysqlPager {
 		$this->first_page($first_page_text, $pager_url_last);
 		$this->last_page($last_page_text, $pager_url_last);
 	}
-} 
+}
 
 ?>

@@ -1,7 +1,7 @@
 <?php
 /*
  *
- * @(#) $Id: form_captcha.php,v 1.18 2008/06/23 01:00:33 mlemos Exp $
+ * @(#) $Id: form_captcha.php,v 1.21 2010/10/31 06:39:41 mlemos Exp $
  *
  */
 
@@ -104,6 +104,16 @@ class form_captcha_class extends form_custom_class
 		return($text);
 	}
 
+	Function ValidateText($text)
+	{
+		if(strlen($text) != $this->text_length)
+			return('the verification text length is not '.$this->text_length.' as required');
+		for($c=0;$c<$this->text_length;$c++)
+			if(GetType(strpos($this->text_characters,$text[$c])) != 'integer')
+				return('the character '.$c.' of the verification text is invalid');
+		return('');
+	}
+
 	Function SetKey(&$form,$encrypted,$format)
 	{
 		if(strlen($error=$form->GetInputEventURL($this->input,"getimage",array($this->image_parameter=>$encrypted),$image_url)))
@@ -185,7 +195,7 @@ class form_captcha_class extends form_custom_class
 				break;
 			case "TextColor":
 			case "BackgroundColor":
-				if(!ereg("^#[0-9a-fA-F]{6}\$",$value))
+				if(!preg_match('/^#[0-9a-fA-F]{6}$/', $value))
 					return("it was not specified a valid ".$property." value");
 				switch($property)
 				{
@@ -239,6 +249,16 @@ class form_captcha_class extends form_custom_class
 			case "ResetIncorrectText":
 				$this->reset_incorrect_text=(intval($value)!=0);
 				break;
+			case 'VALUE':
+				if(strlen($value))
+				{
+					if(strlen($error = $this->ValidateText($value)))
+						return($error);
+				}
+				else
+					$value = $this->GenerateText();
+				$form->SetInputValue($this->text, $this->loaded_text = '');
+				return($this->SetKey($form,$this->EncodeText($value),$this->format));
 			default:
 				return($this->DefaultSetInputProperty($form, $property, $value));
 		}
@@ -263,7 +283,7 @@ class form_captcha_class extends form_custom_class
 			"RedrawText",
 			"RedrawSubForm",
 			"Font",
-			"ResetIncorrectText"
+			"ResetIncorrectText",
 		);
 		for($property=0; $property<count($properties); $property++)
 		{
@@ -325,6 +345,10 @@ class form_captcha_class extends form_custom_class
 			$input_arguments["CLASS"]=$arguments["InputClass"];
 		if(IsSet($arguments["InputStyle"]))
 			$input_arguments["STYLE"]=$arguments["InputStyle"];
+		if(IsSet($arguments["InputTabIndex"]))
+			$input_arguments["TABINDEX"]=$arguments["InputTabIndex"];
+		if(IsSet($arguments["InputExtraAttributes"]))
+			$input_arguments["ExtraAttributes"]=$arguments["InputExtraAttributes"];
 		if(strlen($error=$form->AddInput($input_arguments)))
 			return($error);
 		$redraw_arguments=array(
@@ -347,8 +371,17 @@ class form_captcha_class extends form_custom_class
 			"VALUE"=>""
 		))))
 			return($error);
-		$format=(IsSet($arguments["Format"]) ? $arguments["Format"] : $this->format);
-		return($this->SetKey($form,$this->EncodeText($this->GenerateText()),$format));
+		if(IsSet($arguments["Format"]))
+			$this->format = $arguments["Format"];
+		if(IsSet($arguments['VALUE'])
+		&& strlen($text = $arguments['VALUE']))
+		{
+			if(strlen($error = $this->ValidateText($text)))
+				return($error);
+		}
+		else
+			$text = $this->GenerateText();
+		return($this->SetKey($form,$this->EncodeText($text),$this->format));
 	}
 
 	Function LoadInputValues(&$form, $submitted)

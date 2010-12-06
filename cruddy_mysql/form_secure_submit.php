@@ -1,7 +1,7 @@
 <?php
 /*
  *
- * @(#) $Id: form_secure_submit.php,v 1.2 2007/05/09 01:50:37 mlemos Exp $
+ * @(#) $Id: form_secure_submit.php,v 1.5 2010/08/08 06:23:41 mlemos Exp $
  *
  */
 
@@ -99,11 +99,11 @@ class form_secure_submit_class extends form_custom_class
 		return($form->AddInputPart($this->focus_input));
 	}
 
-	Function WasSubmitted(&$form, $input)
+	Function WasSubmitted(&$form, $input='')
 	{
 		$name=$form->WasSubmitted($this->focus_input);
 		if(strcmp($name, $this->focus_input)
-		|| strcmp(strtoupper($form->METHOD), Getenv('REQUEST_METHOD')))
+		|| strcmp(strlen($form->METHOD) ? strtoupper($form->METHOD) : 'POST', Getenv('REQUEST_METHOD')))
 			return('');
 		$encoded=$form->GetSubmittedValue($this->validation);
 		$decrypted=$this->DecryptValidation($encoded);
@@ -127,6 +127,21 @@ class form_secure_submit_class extends form_custom_class
 				return('');
 		}
 		return($this->DefaultGetInputProperty($form, $property, $value));
+	}
+
+	Function SetInputProperty(&$form, $property, $value)
+	{
+		switch($property)
+		{
+			case "Content":
+			case "VALUE":
+				if(strlen($value)==0)
+					return("it was not specified a valid feedback element identifier");
+				return($form->SetInputProperty($this->focus_input, $property, $value));
+			default:
+				return($this->DefaultSetInputProperty($form, $property, $value));
+		}
+		return("");
 	}
 };
 

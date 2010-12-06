@@ -7,6 +7,7 @@
 					$(id + "[onoff]").innerHTML = "Off"
 					$(id + "[onoff]").className = "off"
 				}
+				return false;
 		   } else {
 		      $(id).checked = true;
 		      $(id).value = 1;
@@ -14,7 +15,22 @@
 					$(id + "[onoff]").innerHTML = "On"
 					$(id + "[onoff]").className = "on"
 				}
+				return true;
 		   }
+		}
+	}
+
+	function toggleGroupings() {
+		toggleObj('showGroups');
+		$('GroupMain').style.display = 'block';
+		var elms = document.body.getElementsByTagName('select');
+		for(var p = 0, maxI = elms.length; p < maxI; ++p) {
+			for(var i=0; i<elms[p].length; i++) {
+				if (elms[p].title == 'Double Click to Remove' || elms[p].multiple == true) {
+					// -- if typical attribs are found, these are the ones we need selected
+					elms[p].options[i].selected = true;
+				}
+			}
 		}
 	}
 	
@@ -35,12 +51,7 @@
             $("results").innerHTML = response;
           } else {
           	if (option == 0) {
-          		var redir = readCookie('redirect');
-          		if (redir == null) {
-            		document.location = location.pathname + '?admin=1&select_database';
-          		} else {
-          			document.location = redir;
-          		}
+            	document.location = location.pathname + '?admin=1&select_database';
           	} else {
          		document.location = location.pathname + '?admin=true&initialize_server=1&newserver=1';
           	}
@@ -67,12 +78,7 @@
           if (response != false) {
             $("results").innerHTML = response;
           } else {
-       		var redir = readCookie('redirect');
-       		if (redir == null) {
-            	document.location = location.pathname + '?admin=1&select_tables';
-       		} else {
-       			document.location = redir;
-       		}
+            document.location = location.pathname + '?admin=1&select_tables';
           }
          },
          onFailure: function() { alert('An unexpected error occurred.'); }
@@ -103,18 +109,18 @@
       {
          method: 'get',
          onSuccess: function(transport) {
-          if ($('fields[' + p3 + '][id]')) {
-			  var d = $('fields[' + p3 + '][id][span]');
-			  var olddiv = $('fields[' + p3 + '][id]');
+          if ($('fields[' + p3 + '][lookupid]')) {
+			  var d = $('fields[' + p3 + '][lookupid][span]');
+			  var olddiv = $('fields[' + p3 + '][lookupid]');
 			  d.removeChild(olddiv);
           }
-          if ($('fields[' + p3 + '][text]')) {
-			  var d = $('fields[' + p3 + '][text][span]');
-			  var olddiv = $('fields[' + p3 + '][text]');
+          if ($('fields[' + p3 + '][lookuptext]')) {
+			  var d = $('fields[' + p3 + '][lookuptext][span]');
+			  var olddiv = $('fields[' + p3 + '][lookuptext]');
 			  d.removeChild(olddiv);
           }
-          $('fields[' + p3 + '][id][span]').innerHTML = transport.responseText.replace("<FIELD_TOKEN>","id");
-          $('fields[' + p3 + '][text][span]').innerHTML = transport.responseText.replace("<FIELD_TOKEN>","text");
+          $('fields[' + p3 + '][lookupid][span]').innerHTML = transport.responseText.replace("<FIELD_TOKEN>","lookupid");
+          $('fields[' + p3 + '][lookuptext][span]').innerHTML = transport.responseText.replace("<FIELD_TOKEN>","lookuptext");
          },
          onFailure: function() { alert('An unexpected error occurred.'); }
       });

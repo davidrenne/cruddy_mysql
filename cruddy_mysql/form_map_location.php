@@ -1,7 +1,7 @@
 <?php
 /*
  *
- * @(#) $Id: form_map_location.php,v 1.22 2008/02/04 02:45:48 mlemos Exp $
+ * @(#) $Id: form_map_location.php,v 1.28 2009/12/18 06:47:53 mlemos Exp $
  *
  */
 
@@ -14,8 +14,10 @@ class form_map_location_class extends form_custom_class
 	var $no_coordinates_format = "{map}\n{latitude}\n{longitude}\n{zoom}\n{maptype}";
 	var $validation_error_message = 'It was not specified a valid location.';
 	var $controls=array();
+	var $clusters=array();
 	var $markers=array();
 	var $icons=array();
+	var $ads_manager = array();
 
 	var $server_validate=0;
 	var $use_focus_input_label = 0;
@@ -26,6 +28,7 @@ class form_map_location_class extends form_custom_class
 	var $map_type = '';
 	var $marker_icon = '';
 	var $default_marker_icon = '';
+	var $cluster = '';
 	var $marker = '';
 	var $icon = '';
 	var $setup_marker = '';
@@ -53,7 +56,13 @@ class form_map_location_class extends form_custom_class
 		$used_icons = array();
 		if(strlen($this->marker_icon))
 			$used_icons[$this->marker_icon] = 0;
-		for($markers = '', $marker = 0; $marker<count($this->markers); $marker++)
+		$tc = count($this->clusters);
+		for($markers = '', Reset($this->clusters), $c = 0; $c < $tc; Next($this->clusters), ++$c)
+		{
+			$cluster = Key($this->clusters);
+			$markers.='var '.$this->cluster.'_markers_'.$cluster.'=[];'.$eol;
+		}
+		for($marker = 0; $marker<count($this->markers); $marker++)
 		{
 			$icon = $this->default_marker_icon;
 			if(IsSet($this->markers[$marker]['Icon']))
@@ -83,8 +92,45 @@ class form_map_location_class extends form_custom_class
 					$options.=',';
 				$options .= 'icon:'.$this->icon.$used_icons[$icon];
 			}
-			$markers.='var '.$this->marker.$marker.'='.$this->setup_marker.'('.$this->map.',{lt:'.strval($this->markers[$marker]['Latitude']).',ln:'.strval($this->markers[$marker]['Longitude']).(strlen($options) ? ',o:{'.$options.'}' : '').',i:'.$form->EncodeJavascriptString($this->markers[$marker]['Information']).(IsSet($this->markers[$marker]['Link']) ? ',lk:'.$form->EncodeJavascriptString($this->markers[$marker]['Link']) : '').(IsSet($this->markers[$marker]['Target']) ? ',t:'.$form->EncodeJavascriptString($this->markers[$marker]['Target']) : '').'});'.$eol;
+			if(IsSet($this->markers[$marker]['Cluster']))
+			{
+				$cluster = $this->markers[$marker]['Cluster'];
+				if(IsSet($this->clusters[$cluster]))
+					$cl = ',cl:'.$this->cluster.'_markers_'.$cluster;
+				else
+				{
+					$cl = '';
+					$form->OutputError('it was specified an invalid marker cluster ("'.$cluster.'") for marker '.$marker, $this->input);
+				}
+			}
+			else
+				$cl = '';
+			$markers.='var '.$this->marker.$marker.'='.$this->setup_marker.'('.$this->map.',{lt:'.strval($this->markers[$marker]['Latitude']).',ln:'.strval($this->markers[$marker]['Longitude']).(strlen($options) ? ',o:{'.$options.'}' : '').',i:'.$form->EncodeJavascriptString($this->markers[$marker]['Information']).(IsSet($this->markers[$marker]['Link']) ? ',lk:'.$form->EncodeJavascriptString($this->markers[$marker]['Link']) : '').(IsSet($this->markers[$marker]['Target']) ? ',t:'.$form->EncodeJavascriptString($this->markers[$marker]['Target']) : '').$cl.'});'.$eol;
 		}
+		$cluster_paths = array();
+		$tc = count($this->clusters);
+		for(Reset($this->clusters), $c = 0; $c < $tc; Next($this->clusters), ++$c)
+		{
+			$cluster = Key($this->clusters);
+			$manager = (IsSet($this->clusters[$cluster]['Manager']) ? $this->clusters[$cluster]['Manager'] : 'not specified');
+			switch($manager)
+			{
+				case 'MarkerClusterer':
+					$markers.='var '.$this->cluster.$cluster.'= new '.$manager.'('.$this->map.', '.$this->cluster.'_markers_'.$cluster.');'.$eol;
+					$path = 'markerclusterer.js';
+					break;
+				default:
+					$form->OutputError('it was specified an invalid marker cluster manager ("'.$manager.'") for cluster '.$cluster, $this->input);
+					break;
+			}
+			if(IsSet($this->clusters[$cluster]['Path']))
+				$path = $this->clusters[$cluster]['Path'];
+			$cluster_paths[$path] = $cluster;
+		}
+		$clusters = '';
+		$tc = count($cluster_paths);
+		for(Reset($cluster_paths), $c = 0; $c < $tc; Next($cluster_paths), ++$c)
+			$clusters.='<script src="'.HtmlSpecialChars(Key($cluster_paths)).'" type="text/javascript"></script>'.$eol;
 		for($icons = '', $i = 0, Reset($used_icons); $i<count($used_icons); Next($used_icons), $i++)
 		{
 			$icon = Key($used_icons);
@@ -127,6 +173,7 @@ class form_map_location_class extends form_custom_class
 		$this->valid_marks['data']['map'] =
 			'<div'.(strlen($this->style) ? ' style="'.HtmlSpecialChars($this->style).'"' : '').(strlen($this->style) ? ' class="'.HtmlSpecialChars($this->class).'"' : '').' id="'.$this->map.'"></div>'.$eol;
 		$this->map_script='<script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key='.HtmlSpecialChars($this->key).'" type="text/javascript"></script>'.$eol.
+			$clusters.
 			'<script type="text/javascript">'.$eol.
 			'// <![CDATA['.$eol.
 			'var '.$this->map.';'.$eol.
@@ -134,7 +181,10 @@ class form_map_location_class extends form_custom_class
 			'function '.$this->setup_marker.'(map, options)'.$eol.
 			'{'.$eol.
 			' var marker=new GMarker(new GLatLng(options.lt, options.ln), options.o ? options.o : null);'.$eol.
-			' map.addOverlay(marker);'.$eol.
+			' if(options.cl)'.$eol.
+			'  options.cl.push(marker);'.$eol.
+			' else'.$eol.
+			'  map.addOverlay(marker);'.$eol.
 			' if(options.i)'.$eol.
 			' {'.$eol.
 			'  GEvent.addListener(marker, "mouseover", function() { marker.openInfoWindowHtml(options.i); });'.$eol.
@@ -164,6 +214,15 @@ class form_map_location_class extends form_custom_class
 			$this->map.'.addOverlay('.$this->marker.');'.$eol).
 			(($this->hide_marker || $this->coordinates_set) ? '' : $this->marker.'.hide();').
 			$markers.
+			(IsSet($this->ads_manager['Publisher']) ?
+			'(new GAdsManager('.$this->map.', '.$form->EncodeJavascriptString($this->ads_manager['Publisher']).','.$eol.
+			'{'.$eol.
+			' style: \'adunit\''.
+			(IsSet($this->ads_manager['MaxAdsOnMap']) ? ','.$eol.' maxAdsOnMap: '.intval($this->ads_manager['MaxAdsOnMap']) : '').
+			(IsSet($this->ads_manager['Channel']) ? ','.$eol.' channel: '.$form->EncodeJavascriptString($this->ads_manager['Channel']) : '').
+			$eol.'}'.$eol.
+			')).enable()'.$eol
+			: '').
 			'}'.$eol.'}'.$eol.'// ]]></script>'.$eol;
 		return($this->DefaultSetInputProperty($form, 'Format', $this->coordinates ? $this->format : $this->no_coordinates_format));
 	}
@@ -173,9 +232,9 @@ class form_map_location_class extends form_custom_class
 		switch($property)
 		{
 			case "Latitude":
-				return($this->latitude.'.value='.$value.';c=new GLatLng('.$this->latitude.'.value,'.$this->longitude.'.value);'.$this->map.'.setCenter(c);'.($this->hide_marker ? '' : $this->marker.'.setPoint(c);'.($this->coordinates_set ? '' : $this->marker.'.show();')));
+				return(($this->coordinates ? $this->latitude.'.value='.$value.';' : '').'c=new GLatLng('.$this->latitude.'.value,'.$this->longitude.'.value);'.$this->map.'.setCenter(c);'.($this->hide_marker ? '' : $this->marker.'.setPoint(c);'.($this->coordinates_set ? '' : $this->marker.'.show();')));
 			case "Longitude":
-				return($this->longitude.'.value='.$value.';c=new GLatLng('.$this->latitude.'.value,'.$this->longitude.'.value);'.$this->map.'.setCenter(c);'.($this->hide_marker ? '' : $this->marker.'.setPoint(c);'.($this->coordinates_set ? '' : $this->marker.'.show();')));
+				return(($this->coordinates ? $this->longitude.'.value='.$value.';' : '').'c=new GLatLng('.$this->latitude.'.value,'.$this->longitude.'.value);'.$this->map.'.setCenter(c);'.($this->hide_marker ? '' : $this->marker.'.setPoint(c);'.($this->coordinates_set ? '' : $this->marker.'.show();')));
 		}
 		return("");
 	}
@@ -235,6 +294,8 @@ class form_map_location_class extends form_custom_class
 			|| !IsSet($this->icons[$this->default_marker_icon]))
 				return('it was not specified a valid default marker icon');
 		}
+		if(IsSet($arguments['Clusters']))
+			$this->clusters=$arguments['Clusters'];
 		if(IsSet($arguments['Markers']))
 			$this->markers=$arguments['Markers'];
 		if(IsSet($arguments['ZoomMarkers'])
@@ -345,6 +406,7 @@ class form_map_location_class extends form_custom_class
 		$this->longitude = $this->GenerateInputID($form, $this->input, 'longitude');
 		$this->zoom = $this->GenerateInputID($form, $this->input, 'zoom');
 		$this->map_type = $this->GenerateInputID($form, $this->input, 'map_type');
+		$this->cluster = $this->GenerateInputID($form, $this->input, 'cluster');
 		$this->marker = $this->GenerateInputID($form, $this->input, 'marker');
 		$this->icon = $this->GenerateInputID($form, $this->input, 'icon');
 		$this->setup_marker = $this->GenerateInputID($form, $this->input, 'sm');
@@ -474,6 +536,8 @@ class form_map_location_class extends form_custom_class
 			return($error);
 		if(IsSet($arguments['Controls']))
 			$this->controls=$arguments['Controls'];
+		if(IsSet($arguments['AdsManager']))
+			$this->ads_manager=$arguments['AdsManager'];
 		if(IsSet($arguments['Format']))
 			$this->format=$arguments['Format'];
 		if(IsSet($arguments['NoCoordinatesFormat']))
@@ -501,10 +565,14 @@ class form_map_location_class extends form_custom_class
 		switch($property)
 		{
 			case 'Latitude':
-				$value = doubleval($form->GetInputValue($this->latitude));
+				$value = $form->GetInputValue($this->latitude);
+				if(strlen($value))
+					$value = min(max(-90, doubleval($value)), 90);
 				break;
 			case 'Longitude':
-				$value = doubleval($form->GetInputValue($this->longitude));
+				$value = $form->GetInputValue($this->longitude);
+				if(strlen($value))
+					$value = min(max(-180, doubleval($value)), 180);
 				break;
 			default:
 				return($this->DefaultGetInputProperty($form, $property, $value));
@@ -567,9 +635,9 @@ class form_map_location_class extends form_custom_class
 			if(IsSet($form->Changes[$this->map_type]))
 				UnSet($form->Changes[$this->map_type]);
 			if(strlen($latitude))
-				$latitude = doubleval($latitude);
+				$latitude = min(max(-90, doubleval($latitude)), 90);
 			if(strlen($longitude))
-				$longitude = doubleval($longitude);
+				$longitude = min(max(-180, doubleval($longitude)), 180);
 			if(strlen($latitude)
 			&& strlen($longitude))
 				$this->coordinates_set = 1;
@@ -581,6 +649,37 @@ class form_map_location_class extends form_custom_class
 		}
 	}
 
+	Function GetJavascriptConnectionAction(&$form, $form_object, $from, $event, $action, &$context, &$javascript)
+	{
+		switch($action)
+		{
+			case 'LocateAddress':
+				if(!IsSet($context['Address'])
+				|| strlen($address = $form->GetJavascriptInputValue($form_object, $context['Address'])) == 0)
+					return('it was not specified a valid address input for LocateAddress action');
+				if(IsSet($context['Country']))
+				{
+					if(strlen($country = $form->GetJavascriptInputValue($form_object, $context['Country'])) == 0)
+						return('it was not specified a valid country input for LocateAddress action');
+					if(IsSet($context['CountryValue'])
+					&& $context['CountryValue'] == "SelectedOption")
+					{
+						if(strlen($country_name = $form->GetJavascriptSelectedOption($form_object, $context['Country'])) == 0)
+							return('it was not specified a valid country select input for LocateAddress action');
+						$address .= ' + ", " + '.$country_name;
+					}
+					else
+						$address .= ' + ", " + c';
+				}
+				else
+					$country = '';
+				$javascript='var g = new GClientGeocoder();'.(strlen($country) ? ' var c = '.$country.'; if(c.length == 2) g.setBaseCountryCode(c);' : '').' g.getLatLng('.$address.', function(c) { if(c) { '.$this->map.'.setCenter(c); '.($this->hide_marker ? '' : $this->marker.'.setPoint(c);'.($this->coordinates_set ? '' : $this->marker.'.show();')).' '.($this->coordinates ? $this->longitude.'.value=c.lng();'.$this->latitude.'.value=c.lat();' : '').'} } );';
+				break;
+			default:
+				return($this->DefaultGetJavascriptConnectionAction($form, $form_object, $from, $event, $action, $context, $javascript));
+		}
+		return('');
+	}
 };
 
 ?>

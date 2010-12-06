@@ -1,6 +1,6 @@
 table {
 color: #7F7F7F;
-font: 0.8em/1.6em "Trebuchet MS",Verdana,sans-serif;
+font: 14px "Trebuchet MS",Verdana,sans-serif;
 border-collapse: collapse
 }
 
@@ -18,7 +18,6 @@ padding: 10px
 
 
 caption,thead th,tfoot th,tfoot td {
-background-color: #E63C1E;
 color: #FFF;
 font-weight: bold;
 text-transform: uppercase
@@ -26,7 +25,6 @@ text-transform: uppercase
 
 
 thead th {
-background-color: #C30;
 color: #FFB3A6;
 text-align: center
 }
