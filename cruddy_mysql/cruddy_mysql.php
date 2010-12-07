@@ -530,8 +530,7 @@ class cruddyMysql {
 						$text .= $processedText;
 					}
 
-					$text .= isset($info[$k]["OPTIONS"][$r[$k]]) ? $info[$k]["OPTIONS"][$r[$k]] : $r[$k];
-					$text = htmlentities($text);
+					$text .= htmlentities((isset($info[$k]["OPTIONS"][$r[$k]]) && !empty($r[$k])) ? $info[$k]["OPTIONS"][$r[$k]] : $r[$k]);
 					if (isset($v[POSTTEXTREAD])) {
 						$processedText = $v[POSTTEXTREAD];
 						foreach($pagedResults as $k2 => $v2) {
