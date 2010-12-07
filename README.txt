@@ -3,6 +3,28 @@ CRUDDY_MYSQL
 Written By: David Renne
 Home Page : http://github.com/davidrenne/cruddy_mysql/tree
 
+FUNCTIONALITIES
+============
+*Create mySQL Administration Console - w/o people needing to know SQL
+	-Also create CRUD recordsets to instantiate and include on other pages outside of this Administration Console
+
+*Configure each field as a unique input type when Creating or Updating records
+
+*Validate the data input using canned validations for common things, or using your own custom regEx
+
+*Create user accounts to log into the console you configure
+
+*Grant permission to view table groups or use it to run websites without writing SQL code
+
+*Custom pre and post processors for each table update/insert allow you to program whatever is needed with your particular needs
+
+*Foreign key lookups on your primary keys allow for business users to recognize the referenced values instead of numbers
+
+*Connect to multiple mySQL servers and abstract a few tables or many tables you wish for people to maintain the data on these records
+
+*Customize which links show based on user roles or just globally shut off based on a table configuration alias
+
+*Stylize some of your tables and data by switching themes
 
 GETTING STARTED
 ============
