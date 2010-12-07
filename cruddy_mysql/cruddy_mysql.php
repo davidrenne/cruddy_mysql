@@ -456,7 +456,7 @@ class cruddyMysql {
 		echo "<table>\n";
 		if ( is_array($res) ) {
 			echo "<thead>
-								<tr>";
+						<tr>";
 			foreach($definitions as $key => $value) {
 				if ( !is_array($value) || $value[SHOWCOLUMN] == 0 || !isset($value[SHOWCOLUMN])) continue;
 
@@ -497,7 +497,7 @@ class cruddyMysql {
 			}
 
 			echo "</tr>
-								</thead>";
+						</thead>";
 			foreach($res as $k => $r) {
 				$pagedResults = (array)$r;
 				echo "   <tr>\n";
@@ -556,7 +556,14 @@ class cruddyMysql {
 					if (strlen($text) > 30 && preg_match("|<[^>]+>(.*)</[^>]+>|U",$text)==0 && !stristr($text,"<img") && !stristr($text,"<input")) {
 						$text = substr($text,0,30)."...";
 					}
-					echo "      <td>".$linkStart.stripslashes($text).$linkEnd."</td>\n";
+					if ($info[$k]["TYPE"] == 'select') {
+						$parts = parse_url($definitions[TABLE_CONFIG]['connection']);
+						$text .= " <strong style=\"color:black;\">(<a href=\"?action=view_".str_replace("/","",$parts['path'])."_".$v[TABLE]."&". $v[ID] . "=". $r[$k] ."\">{$r[$k]}</a>)</strong>";
+					}
+
+					echo "<td>".$linkStart.stripslashes($text).$linkEnd."</td>\n";
+					// -- debug the row
+					//echo "<td>".var_export($r,true)."</td>";
 
 				}
 
@@ -622,7 +629,7 @@ class cruddyMysql {
 		}
 		echo '<table summary="Input fields table">';
 		foreach($this->formParams as $inpName => $i) {
-			$continue = true; // -- continue not actually skipping when called
+			$continue = true;
 			if (is_array($def[TABLE_CONFIG][OTHER_OBJECTS])) {
 				foreach ($def[TABLE_CONFIG][OTHER_OBJECTS] as $key=>$value) {
 					if ($key == $inpName) {
@@ -760,7 +767,7 @@ class cruddyMysql {
 				$form["LABEL"] .="<span class='required'>".$info[TABLE_CONFIG][REQUIRED_TEXT]."</span>";
 			} else {
 				$form["Optional"] = true;
-				 unset($form["ValidateAsNotEmpty"]);
+				unset($form["ValidateAsNotEmpty"]);
 			}
 
 			$form["LABEL"] = isset($actInfo[CAPTION]) ? $actInfo[CAPTION] : $Field;
@@ -1563,11 +1570,20 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				if ($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_HIDE_NEW_LINK] == 0 || $crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_HIDE_NEW_LINK] == 0) {
 
 					// -- custom logic for each object on how it draws its links can go here by utilizing case statements of $currentTable
-					$newLink = "<a href='?action=".strtolower($crudActions['new']);
+					
+					$theLink = "<a href='?action=".strtolower($crudActions['new']);
 					if ($this->defaultConfigOverRide) {
-						$newLink .= "&conf=$this->current_config";
+						$theLink .= "&conf=$this->current_config";
 					}
-					$newLink .=  "'>Add new $crudObject->object_name</a> | ";
+					$theLink .= "'>Add new $crudObject->object_name</a> | ";
+
+					if ($definitions[TABLE_CONFIG][OBJECT_HIDE_EDIT_LINK] != 1 && substr($_GET['action'],0,4) == "view") {
+						$theLink = "<a href='".str_replace("action=view_","action=update_",$_SERVER['REQUEST_URI'])."'>Update This $crudObject->object_name</a> | ";
+					} elseif (substr($_GET['action'],0,4) == "view") {
+						// -- user cannot see the update link
+						$theLink = "";
+					}
+					$newLink .= $theLink;
 					$break = "<br/>";
 				}
 				if (!isset($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_HIDE_VIEW_LINK]) || $crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_HIDE_VIEW_LINK] == 0 ) {
