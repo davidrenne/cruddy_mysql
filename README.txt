@@ -30,13 +30,17 @@ GETTING STARTED
 ============
 If you leave the cruddy_mysql folder with the original name, you dont need to configure anything.
 
-Please ensure that the root directory is writable.  This is where Cruddy Mysql will write three files:
+Please ensure that the root directory is writable.  This is where Cruddy Mysql will write three primary files:
 
 	*crud_{SERVERNAME}.config.php - serialized array storing all your field configs and servers
 	*crud_{SERVERNAME}.custom.functions.php - allows you to add custom PHP code when CRUDDY things happen to your database
 	*crud_{SERVERNAME}.draw.functions.php - draws all of the tables - normally not edited much
 	
 Also ensure that cruddy_mysql/cache is writable.
+
+Please be aware that a serialized array will be written to this when you are testing.  Your mysql connection information WILL be contained in the .config.php file in plain text if this file is somehow visible via directory listing in PLAIN TEXT.
+
+With that said, you should always click the PRODUCTIONIZE link given to cruddy administrators to convert that serialized array into a php array so that these credentials and your configurations are never leaked.
 
 IMPLEMENTATION
 ============
