@@ -468,7 +468,7 @@ class cruddyMysql {
 //							$res = mysql_query("select ".$definitions[$column][TEXT]." from ".$definitions[$column][TABLE]." WHERE `$column` = '".mysql_real_escape_string($v)."'");
 //							var_dump(mysql_fetch_assoc($res));
 //						}
-						$desc .=  "<div style='border: 5px ridge #485254;float: left;cursor:pointer;' onclick='if (window.confirm(\"Do you want to remove the `".$definitions[$column][CAPTION]."` filter?\")) { eraseCookie(\"$k\"); document.location = document.location; } '><span style='font-size: 19px;color:#7F7F7F;'>".$definitions[$column][CAPTION]."</span>&rarr;<span style='font-size: 19px;color:#7F7F7F;'>\"".$v."\"</span></div><div style='float:left;margin-top:7px;'> + </div>";
+						$desc .=  "<div style='-moz-border-radius:8px 8px 8px 8px;border: 3px ridge #485254; float: left;cursor:pointer;' onclick='if (window.confirm(\"Do you want to remove the `".$definitions[$column][CAPTION]."` filter?\")) { eraseCookie(\"$k\"); document.location = document.location; } '><span style='font-size: 19px;color:#7F7F7F;'>".$definitions[$column][CAPTION]."</span>&rarr;<span style='font-size: 19px;color:#7F7F7F;'>\"".$v."\"</span></div><div style='float:left;margin-top:7px;'> + </div>";
 					}
 					if (!isset($definitions[$column]) && $currentTable!='') {
 						$desc = '';
