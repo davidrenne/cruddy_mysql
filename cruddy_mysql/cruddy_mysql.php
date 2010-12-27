@@ -1616,8 +1616,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 			 * $crudAdmin->paint('table','localhost','root','root','database','file_configuration_name');
 		    */
 			$this->defaultConfigOverRide = true;
-			$this->adminFile  = str_replace(RELATIVE_CRUD_CLASS_LOCATION,"",dirname(__FILE__)."/".$configurationFile.".config.php");
-			$this->functionsFile  = str_replace(RELATIVE_CRUD_CLASS_LOCATION,"",dirname(__FILE__)."/".$configurationFile.".custom.functions.php");
+			$this->adminFile  = getcwd().$this->systemDirectorySeparator.$configurationFile.".config.php";
+			$this->functionsFile  = getcwd().$this->systemDirectorySeparator.$configurationFile.".custom.functions.php";
 			if ($this->adminDBExists()) {
 				$this->currentAdminDB = $this->readAdminDB();
 				$this->currentAdminDB[TABLE_CONFIG]['alias'] = $configurationFile;
