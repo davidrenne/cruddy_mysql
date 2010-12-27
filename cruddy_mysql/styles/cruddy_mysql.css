@@ -205,3 +205,10 @@ a {
 #clear {
 	clear:both;
 }
+
+h4 {
+	margin-bottom: 9px; margin-top: 9px;
+}
+h2 {
+	margin-bottom: 9px; margin-top: 9px; font-size: 34px;
+}

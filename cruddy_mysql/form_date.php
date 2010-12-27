@@ -87,6 +87,8 @@ class form_date_class extends form_custom_class
 
 	Function AddInput(&$form, $arguments)
 	{
+		//var_dump($arguments);
+		//$this->searchMode = $this->GenerateInputID($form, $this->input, "searchMode");
 		$this->year=$this->GenerateInputID($form, $this->input, "year");
 		$this->month=$this->GenerateInputID($form, $this->input, "month");
 		$this->day=$this->GenerateInputID($form, $this->input, "day");
@@ -200,6 +202,7 @@ class form_date_class extends form_custom_class
 		if($this->choose_control)
 		{
 			$format = str_replace('{date}', $format, $this->choose_format);
+			//var_dump($this->searchMode);
 			if(strlen($error = $form->AddInput(array(
 				"NAME"=>$this->choose_input,
 				"ID"=>$this->choose_input,

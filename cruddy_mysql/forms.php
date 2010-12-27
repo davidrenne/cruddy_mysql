@@ -1574,11 +1574,11 @@ class form_class
 		}
 		if(!strcmp($this->inputs[$for]["TYPE"],"custom"))
 		{
-			if(strlen($error=$this->inputs[$for]["object"]->AddLabelPart($this, $arguments)))
+			/*if(strlen($error=$this->inputs[$for]["object"]->AddLabelPart($this, $arguments)))
 			{
 				$this->OutputError($error, $for);
 				return($error);
-			}
+			}*/
 			return("");
 		}
 		$label=array("FOR"=>$for);

@@ -20,6 +20,27 @@
 		}
 	}
 
+	function finishUser() {
+		var elms = document.body.getElementsByTagName('select');
+		var ok = false;
+		for(var p = 0, maxI = elms.length; p < maxI; ++p) {
+			for(var i=0; i<elms[p].length; i++) {
+				if (elms[p].value == 1) {
+					ok = true;
+				}
+			}
+		}
+		if (ok === false){
+			if (window.confirm("Typically Role #1 (who is a super admin) should be setup so you dont lose access to setup your cruddy mysql instance.  Please ensure at least one user is setup with this role.  Click Cancel to change.")) {
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			return true;
+		}
+	}
+
 	function toggleGroupings() {
 		toggleObj('showGroups');
 		$('GroupMain').style.display = 'block';
@@ -100,6 +121,27 @@
          },
          onFailure: function() { alert('An unexpected error occurred.'); }
       });
+	}
+
+	function cloneTable(originalTable) {
+		var newName = window.prompt("Enter a new alias such as {tablename}_active or {tablename}_descending depending on what this clone is going to be used for.", originalTable);
+		if (newName != null) {
+			var url = location.pathname;
+			var params = "?admin=1&clone_table=1&original_pointer=" + originalTable + "&new_name=" + newName;
+				new Ajax.Request( url + params,
+				{
+					 method: 'get',
+					 onSuccess: function(transport) {
+						//var root=$(originalTable);
+						//var clone=$(originalTable).cloneNode(true);
+						//$(originalTable).id = newName;
+						//$(originalTable).id = newName;
+						//root.parentNode.insertBefore(clone,root.nextSibling);
+						document.location = document.location;
+					 },
+					 onFailure: function() { alert('An unexpected error occurred.'); }
+				});
+		}
 	}
 	
 	function lookupFieldsFromTable(val,p1,p2,p3,p4) {
