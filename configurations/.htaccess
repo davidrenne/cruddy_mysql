@@ -1,0 +1,2 @@
+#securing the configurations directory from would be password snatchers
+deny from all

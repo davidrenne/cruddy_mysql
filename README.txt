@@ -124,7 +124,10 @@ Upon configuring everything the system will create a file called crud_{SERVERNAM
 
 This file is supposed to be used to give you control over when the user updates, deletes, adds etc a record so you can add custom things like email events and other redirection methods to create your administration console for business users who are not savvy enough to navigate something like phpMyAdmin.
 
-Good luck, let me know of your thoughts on this....
+
+IMPLEMENTATION
+============
+
 
 OPEN SOURCE PACKAGES USED
 ============

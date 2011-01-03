@@ -1,20 +1,7 @@
 <?php
 
 // -- relative path of where the cruddy_mysql directory is from where this file is (must be publicly accessed)
-define("RELATIVE_CRUD_CLASS_LOCATION","cruddy_mysql/");
-if ($_SERVER['SERVER_PORT'] != '80') {
-	if ($_SERVER['SERVER_PORT'] == 443) {
-		$secure = 's';
-	}
-	$port = ":".$_SERVER['SERVER_PORT'];
-}
-$paths = explode('/',$_SERVER['REQUEST_URI']);
-unset($paths[sizeof($paths)-1]);
-unset($paths[0]);
-
-define("PUBLIC_CRUD_CLASS_LOCATION",'http'.$secure.'://'.$_SERVER['SERVER_NAME'].$port.'/'.implode('/',$paths).'/'.RELATIVE_CRUD_CLASS_LOCATION);
-
-require_once(RELATIVE_CRUD_CLASS_LOCATION."cruddy_mysql.php");
+require_once("cruddy_mysql/cruddy_mysql.php");
 
 ob_start();
 $crudAdmin = new cruddyMysqlAdmin();
