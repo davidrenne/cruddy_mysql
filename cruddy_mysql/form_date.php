@@ -175,6 +175,10 @@ class form_date_class extends form_custom_class
 				$value = $today;
 			if(strlen($error=$this->ValidateDate($value, $current_year, $current_month, $current_day)))
 				return($error);
+			if ($value == '0000-00-00 00:00:00')
+				$value = date('Y-m-d H:i:s');
+			if ($value == '0000-00-00')
+				$value = date('Y-m-d');
 			$this->value = $value;
 		}
 		else
@@ -207,7 +211,7 @@ class form_date_class extends form_custom_class
 				"NAME"=>$this->choose_input,
 				"ID"=>$this->choose_input,
 				"TYPE"=>"checkbox",
-				"CHECKED"=>$this->choose,
+				//"CHECKED"=>$this->choose,
 				"ONCHANGE"=>$form->GetJavascriptInputObject('this.form', $this->year).'.disabled = '.$form->GetJavascriptInputObject('this.form', $this->month).'.disabled = '.($this->hide_day ? '' : $form->GetJavascriptInputObject('this.form', $this->day).'.disabled = ').'!this.checked;'
 			))))
 				return($error);

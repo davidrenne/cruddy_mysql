@@ -790,7 +790,7 @@ class form_class
 		&& strcmp($arguments["ID"],""))
 			$name=$input["ID"]=$arguments["ID"];
 		if(!strcmp($name,""))
-		   //var_dump($arguments);
+			//var_dump($arguments);
 			return($this->OutputError("it was not specified a valid input name","AddInput"));
 		if(IsSet($this->inputs[$name]))
 			return($this->OutputError("it was specified the name of an already defined input",$name));
@@ -1569,7 +1569,7 @@ class form_class
 		|| !strcmp($for=$arguments["FOR"],"")
 		|| !IsSet($this->inputs[$for]))
 		{
-   	   var_dump(!IsSet($arguments["FOR"]),!strcmp($for=$arguments["FOR"],""),!IsSet($this->inputs[$for]));
+			var_dump(!IsSet($arguments["FOR"]),!strcmp($for=$arguments["FOR"],""),!IsSet($this->inputs[$for]));
 			return($this->OutputError("it was not specified a valid label FOR input ID","AddLabelPart"));
 		}
 		if(!strcmp($this->inputs[$for]["TYPE"],"custom"))
@@ -2861,7 +2861,7 @@ class form_class
 					else
 						$function("\t{\n\t\t".$element_name."=".$input["Encoding"]."(".$element_name.")\n\t}\n");
 				}
- 				$function("\treturn true".$jseol."}".$jseol);
+				$function("\treturn true".$jseol."}".$jseol);
 			}
 			if(count($this->functions))
 			{
@@ -3036,7 +3036,7 @@ class form_class
 					break;
 				}
 			default:
- 				$value=(IsSet($GLOBALS[$variable]) ? $GLOBALS[$variable] : "");
+				$value=(IsSet($GLOBALS[$variable]) ? $GLOBALS[$variable] : "");
 				break;
 		}
 		if($multiple)
@@ -3509,7 +3509,7 @@ class form_class
 					$verify[$field]=$this->FlagInvalidInput($field, $input_error);
 				}
 				if(count($this->flagged_inputs))
-    		{
+			{
 					for($f=0, Reset($this->flagged_inputs); $f<count($this->flagged_inputs); Next($this->flagged_inputs), $f++)
 					{
 						$i=Key($this->flagged_inputs);
@@ -4281,44 +4281,14 @@ class form_class
 
 	Function WasSubmitted($input="")
 	{
-		if(strcmp($input,""))
+		if (isset($_POST[INPUT_DOIT]))
 		{
-			if(!IsSet($this->inputs[$input]))
-			{
-				$this->OutputError("it was not specified an existing input",$input);
-				return("");
-			}
-			if(!strcmp($this->inputs[$input]["TYPE"],"custom"))
-				return($this->inputs[$input]["object"]->WasSubmitted($this, $input));
-			$name=(IsSet($this->inputs[$input]["NAME"]) ? $this->inputs[$input]["NAME"] : $input);
-			if($this->inputs[$input]["TYPE"]=="image")
-				return(($this->IsSetValue($name."_x",0) && $this->IsSetValue($name."_y",0)) ? $input : "");
-			return($this->IsSetValue($name,$this->inputs[$input]["TYPE"]=="file") ? $input : "");
+			return true;
 		}
-		for($field=0,Reset($this->inputs);$field<count($this->inputs);Next($this->inputs),$field++)
+		else
 		{
-			$input=Key($this->inputs);
-			if(IsSet($this->inputs[$input]['IgnoreAnonymousSubmitCheck']))
-				continue;
-			$name=(IsSet($this->inputs[$input]["NAME"]) ? $this->inputs[$input]["NAME"] : $input);
-			switch($this->inputs[$input]["TYPE"])
-			{
-				case "submit":
-					if($this->IsSetValue($name,0))
-						return($input);
-					break;
-				case "image":
-					if($this->IsSetValue($name."_x",0)
-					&& $this->IsSetValue($name."_y",0))
-						return($input);
-					break;
-				case "custom":
-					if(strlen($submitted=$this->inputs[$input]["object"]->WasSubmitted($this, '')))
-						return($submitted);
-					break;
-			}
+			return false;
 		}
-		return("");
 	}
 
 	Function StartLayoutCapture()
@@ -4382,7 +4352,7 @@ class form_class
 	{
 		global $HTTP_GET_VARS, $HTTP_POST_VARS, $HTTP_SERVER_VARS;
 
-	 	$processed=0;
+		$processed=0;
 		if(!$this->IsSetValue($this->event_parameter,0)
 		|| !$this->IsSetValue($this->input_parameter,0))
 			return("");
@@ -4695,7 +4665,7 @@ class form_class
 				elseif(strlen($error = $this->inputs[$container]["object"]->GetContainedInputs($this, $kind, $contained)))
 					return($this->OutputError($error, $container));
 				break;
-	  	default:
+		default:
 				return($this->OutputError('getting contained '.$kind.' inputs is not yet supported', $container));
 		}
 		return('');

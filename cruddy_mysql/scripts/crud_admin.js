@@ -1,22 +1,22 @@
 	function toggleObj(id) {
 		if ($(id)) {
-		   if($(id).checked==true) {
-		      $(id).checked = false;
-		      $(id).value = 0;
+			if($(id).checked==true) {
+				$(id).checked = false;
+				$(id).value = 0;
 				if ($(id + "[onoff]")) {
 					$(id + "[onoff]").innerHTML = "Off"
 					$(id + "[onoff]").className = "off"
 				}
 				return false;
-		   } else {
-		      $(id).checked = true;
-		      $(id).value = 1;
+			} else {
+				$(id).checked = true;
+				$(id).value = 1;
 				if ($(id + "[onoff]")) {
 					$(id + "[onoff]").innerHTML = "On"
 					$(id + "[onoff]").className = "on"
 				}
 				return true;
-		   }
+			}
 		}
 	}
 
@@ -60,26 +60,26 @@
 	  $(tableID).deleteRow(row.rowIndex);
 	}
 	
-   function storeConnectionInfo(option) {
+	function storeConnectionInfo(option) {
 		var url = location.pathname;
 		var params = "?admin=1&initialize_server=1&store_database=1&server=" + $("server").value + "&adminname=" + $("adminname").value + "&username=" + $("username").value + "&password=" + $("password").value + "&port=" + $("port").value;
-      new Ajax.Request( url + params,
-      {
-         method: 'get',
-         onSuccess: function(transport) {
-          var response = transport.responseText || false;
-          if (response != false) {
-            $("results").innerHTML = response;
-          } else {
-          	if (option == 0) {
-            	document.location = location.pathname + '?admin=1&select_database';
-          	} else {
-         		document.location = location.pathname + '?admin=true&initialize_server=1&newserver=1';
-          	}
-          }
-         },
-         onFailure: function() { alert('An unexpected error occurred.'); }
-      });
+		new Ajax.Request( url + params,
+		{
+			method: 'get',
+			onSuccess: function(transport) {
+			 var response = transport.responseText || false;
+			 if (response != false) {
+				$("results").innerHTML = response;
+			 } else {
+				if (option == 0) {
+					document.location = location.pathname + '?admin=1&select_database';
+				} else {
+					document.location = location.pathname + '?admin=true&initialize_server=1&newserver=1';
+				}
+			 }
+			},
+			onFailure: function() { alert('An unexpected error occurred.'); }
+		});
 	}	
 	
 	function storeDatabaseInfo() {
@@ -91,36 +91,37 @@
 				params += "&" + selectobject.options[i].text + "=" + selectobject.options[i].value;
 			}
 		}
-      new Ajax.Request( url + params,
-      {
-         method: 'get',
-         onSuccess: function(transport) {
-          var response = transport.responseText || false;
-          if (response != false) {
-            $("results").innerHTML = response;
-          } else {
-            document.location = location.pathname + '?admin=1&select_tables';
-          }
-         },
-         onFailure: function() { alert('An unexpected error occurred.'); }
-      });
+		params += "&masterMode=" + $('masterMode').value;
+		new Ajax.Request( url + params,
+		{
+			method: 'get',
+			onSuccess: function(transport) {
+			 var response = transport.responseText || false;
+			 if (response != false) {
+				$("results").innerHTML = response;
+			 } else {
+				document.location = location.pathname + '?admin=1&select_tables';
+			 }
+			},
+			onFailure: function() { alert('An unexpected error occurred.'); }
+		});
 	}
 	function storeThemeInfo() {
 		var url = location.pathname;
 		var params = "?admin=1&select_theme=1&store_database=1&theme=" + document.getElementById("theme").value;
-      new Ajax.Request( url + params,
-      {
-         method: 'get',
-         onSuccess: function(transport) {
-          var response = transport.responseText || false;
-          if (response != false) {
-            $("results").innerHTML = response;
-          } else {
-            document.location = location.pathname;
-          }
-         },
-         onFailure: function() { alert('An unexpected error occurred.'); }
-      });
+		new Ajax.Request( url + params,
+		{
+			method: 'get',
+			onSuccess: function(transport) {
+			 var response = transport.responseText || false;
+			 if (response != false) {
+				$("results").innerHTML = response;
+			 } else {
+				document.location = location.pathname;
+			 }
+			},
+			onFailure: function() { alert('An unexpected error occurred.'); }
+		});
 	}
 
 	function cloneTable(originalTable) {
@@ -147,38 +148,38 @@
 	function lookupFieldsFromTable(val,p1,p2,p3,p4) {
 		var url = location.pathname;
 		var params = "?admin=1&find_fields=1&table=" + val + "&server=" + p1 + "&database=" + p2 + "&k1=" + p3 + "&k2=" + p4;
-      new Ajax.Request( url + params,
-      {
-         method: 'get',
-         onSuccess: function(transport) {
-          if ($('fields[' + p3 + '][lookupid]')) {
+		new Ajax.Request( url + params,
+		{
+			method: 'get',
+			onSuccess: function(transport) {
+			 if ($('fields[' + p3 + '][lookupid]')) {
 			  var d = $('fields[' + p3 + '][lookupid][span]');
 			  var olddiv = $('fields[' + p3 + '][lookupid]');
 			  d.removeChild(olddiv);
-          }
-          if ($('fields[' + p3 + '][lookuptext]')) {
+			 }
+			 if ($('fields[' + p3 + '][lookuptext]')) {
 			  var d = $('fields[' + p3 + '][lookuptext][span]');
 			  var olddiv = $('fields[' + p3 + '][lookuptext]');
 			  d.removeChild(olddiv);
-          }
-          $('fields[' + p3 + '][lookupid][span]').innerHTML = transport.responseText.replace("<FIELD_TOKEN>","lookupid");
-          $('fields[' + p3 + '][lookuptext][span]').innerHTML = transport.responseText.replace("<FIELD_TOKEN>","lookuptext");
-         },
-         onFailure: function() { alert('An unexpected error occurred.'); }
-      });
+			 }
+			 $('fields[' + p3 + '][lookupid][span]').innerHTML = transport.responseText.replace("<FIELD_TOKEN>","lookupid");
+			 $('fields[' + p3 + '][lookuptext][span]').innerHTML = transport.responseText.replace("<FIELD_TOKEN>","lookuptext");
+			},
+			onFailure: function() { alert('An unexpected error occurred.'); }
+		});
 	}
 	
 	function getElements(tagname, node)  {
-       if(!node) node = document.getElementsByTagName("body")[0];
-       var a = [];
-       var els = node.getElementsByTagName(tagname);
-       for(var i=0,j=els.length; i<j; i++) {
-          a.push(els[i]);
-       }
-       return a;
-   }
-   
-   
+		 if(!node) node = document.getElementsByTagName("body")[0];
+		 var a = [];
+		 var els = node.getElementsByTagName(tagname);
+		 for(var i=0,j=els.length; i<j; i++) {
+			 a.push(els[i]);
+		 }
+		 return a;
+	}
+	
+	
 	function hasOptions(obj) {
 		if (obj!=null && obj.options!=null) { 
 			return true; 
@@ -214,7 +215,7 @@
 		$('password').value = '';
 		$('user_name').name = 'user[' + nextRoleID + '][user_name]';
 		$('password').name = 'user[' + nextRoleID + '][password]';
-		$('group_roles').name = 'user[' + nextRoleID + '][group_roles]';
+		$('group_roles').name = 'user[' + nextRoleID + '][role]';
 	}
 	
 	function addNewVariableGroup() {
@@ -225,35 +226,36 @@
 			return;
 		}
 		if (response){ 
-	        // -- create first TD
+			$('hasAddedNewGroup').value = 1;
+			// -- create first TD
 			mycurrent_row = $('groupedTable');
-	        currentCell = document.createElement("td");
-	        currentCell.setAttribute("align","center");
-	        currentCell.setAttribute("valign","middle");
-	        currenttext = document.createElement("a");
-	        currenttext.href = 'javascript:moveSelectedOptions($(\'GroupMain\'),$(\'groupName[' + response + ']\'));';
-	        currenttext.appendChild(document.createTextNode(">>"))
-	        currentCell.appendChild(currenttext);
-	        mycurrent_row.appendChild(currentCell);
-	        
-	        // -- second TD needed
-	        currentCell = document.createElement("td");
-	        currentCell.setAttribute("align","center");
-	        currentCell.setAttribute("valign","middle");
-	        currentSelect = document.createElement("select");
-	        currentSelect.setAttribute("id","groupName[" + response + "]");
-	        currentSelect.setAttribute("name","groupName[" + response + "][]");
-	        currentSelect.setAttribute("multiple","multiple");
-	        currentSelect.setAttribute("size","10");
-	        currentSelect.setAttribute("title","Double Click to Remove");
-	        currentSelect.setAttribute("ondblclick",'moveSelectedOptions($(\'groupName[' + response + ']\'),$(\'GroupMain\'));');
-	        currentBR = document.createElement("br");
-	        currentCell.appendChild(document.createTextNode(response));
-	        currentCell.appendChild(currentBR);
-	        currentCell.appendChild(currentSelect);
-	        mycurrent_row.appendChild(currentCell);
-	        
-	        moveSelectedOptions($('GroupMain'),$("groupName[" + response + "]"),1);
+			currentCell = document.createElement("td");
+			currentCell.setAttribute("align","center");
+			currentCell.setAttribute("valign","middle");
+			currenttext = document.createElement("a");
+			currenttext.href = 'javascript:moveSelectedOptions($(\'GroupMain\'),$(\'groupName[' + response + ']\'));';
+			currenttext.appendChild(document.createTextNode(">>"))
+			currentCell.appendChild(currenttext);
+			mycurrent_row.appendChild(currentCell);
+			
+			// -- second TD needed
+			currentCell = document.createElement("td");
+			currentCell.setAttribute("align","center");
+			currentCell.setAttribute("valign","middle");
+			currentSelect = document.createElement("select");
+			currentSelect.setAttribute("id","groupName[" + response + "]");
+			currentSelect.setAttribute("name","groupName[" + response + "][]");
+			currentSelect.setAttribute("multiple","multiple");
+			currentSelect.setAttribute("size","10");
+			currentSelect.setAttribute("title","Double Click to Remove");
+			currentSelect.setAttribute("ondblclick",'moveSelectedOptions($(\'groupName[' + response + ']\'),$(\'GroupMain\'));');
+			currentBR = document.createElement("br");
+			currentCell.appendChild(document.createTextNode(response));
+			currentCell.appendChild(currentBR);
+			currentCell.appendChild(currentSelect);
+			mycurrent_row.appendChild(currentCell);
+			
+			moveSelectedOptions($('GroupMain'),$("groupName[" + response + "]"),1);
 		}
 	}
 	

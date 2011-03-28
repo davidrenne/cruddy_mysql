@@ -1,11 +1,16 @@
 function createCookie(name,value,days) {
-	if (days) {
+	if (days) 
+	{
 		var date = new Date();
 		date.setTime(date.getTime()+(days*24*60*60*1000));
 		var expires = "; expires="+date.toGMTString();
 	}
-	else var expires = "";
-	document.cookie = name+"="+value+expires+"; path=/";
+	else 
+	{
+		var expires = "";
+	}
+	var theCookie = name+"="+value+expires+"; path=/";
+	document.cookie = theCookie;
 }
 
 function readCookie(name) {
@@ -51,22 +56,26 @@ window.onload=function(){
 		Event.observe("menu2", "mousemove", function(event){
 			coordinateX=Event.pointerX(event)-$("menu2").offsetLeft;
 			$("slider2").style.marginLeft=coordinateX-20+"px";
-			$("serverList").style.top =Event.pointerY(event)+"px";
-			$("databaseList").style.top =Event.pointerY(event)+"px";
-			$("FieldList").style.top =Event.pointerY(event)+"px";
-			$("serverList").style.left =Event.pointerX(event)+"px";
-			$("databaseList").style.left =Event.pointerX(event)+"px";
-			$("FieldList").style.left =Event.pointerX(event)+"px";
+			if ($("serverList")) {
+				$("serverList").style.top =Event.pointerY(event)+"px";
+				$("databaseList").style.top =Event.pointerY(event)+"px";
+				$("FieldList").style.top =Event.pointerY(event)+"px";
+				$("serverList").style.left =Event.pointerX(event)+"px";
+				$("databaseList").style.left =Event.pointerX(event)+"px";
+				$("FieldList").style.left =Event.pointerX(event)+"px";
+			}
 		});
 		Event.observe("menu2", "click", function(event){
 			coordinateX=Event.pointerX(event)-$("menu2").offsetLeft;
 			$("slider2").style.marginLeft=coordinateX-20+"px";
-			$("serverList").style.top =Event.pointerY(event)+"px";
-			$("databaseList").style.top =Event.pointerY(event)+"px";
-			$("FieldList").style.top =Event.pointerY(event)+"px";
-			$("serverList").style.left =Event.pointerX(event)+"px";
-			$("databaseList").style.left =Event.pointerX(event)+"px";
-			$("FieldList").style.left =Event.pointerX(event)+"px";
+			if ($("serverList")) {
+				$("serverList").style.top =Event.pointerY(event)+"px";
+				$("databaseList").style.top =Event.pointerY(event)+"px";
+				$("FieldList").style.top =Event.pointerY(event)+"px";
+				$("serverList").style.left =Event.pointerX(event)+"px";
+				$("databaseList").style.left =Event.pointerX(event)+"px";
+				$("FieldList").style.left =Event.pointerX(event)+"px";
+			}
 		});
 	}
 }
