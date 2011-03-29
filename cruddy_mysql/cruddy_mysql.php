@@ -500,21 +500,27 @@ class cruddyMysql {
 		} elseif ($wh) {
 			$filter = str_replace("1=1","1=1 $wh", $filter);
 		}
-		if (isset($definitions[TABLE_CONFIG][OBJECT_DEFAULT_ORDER]) && !stristr($filter,"order")) {
+		if (!empty($definitions[TABLE_CONFIG][OBJECT_DEFAULT_ORDER]) && !stristr($filter,"order")) {
 			$filter .= " ORDER BY `".$definitions[TABLE_CONFIG][OBJECT_DEFAULT_ORDER]."`";
 		}
+		
 		$this->doQuery($filter);
 		$res  = &$this->result;
 		$info = &$this->formParams;
 		echo "<table>\n";
 		if ( is_array($res) ) {
+			
 			echo "<thead>
 						<tr>";
+			
+			if ($definitions[TABLE_CONFIG][OBJECT_IS_AGGREGATE]) {
+				echo "<th>Database</th>";
+			}
 			foreach($definitions as $key => $value) {
 				if ( !is_array($value) || $value[SHOWCOLUMN] == 0 || !isset($value[SHOWCOLUMN])) continue;
 
 				// -- if the field doesnt say to NOT sort
-				if ($definitions[TABLE_CONFIG][SORTABLE] == 1 || !isset($definitions[TABLE_CONFIG][SORTABLE])) {
+				if ( ($definitions[TABLE_CONFIG][SORTABLE] == 1 || !isset($definitions[TABLE_CONFIG][SORTABLE])) && !$definitions[TABLE_CONFIG][OBJECT_IS_AGGREGATE]) {
 					if ($_GET[$definitions[TABLE_CONFIG][OBJECT_ACTIONS]['order_direction']] == 'ASC') {
 						$direction = 'DESC';
 						$directionAscii = '&darr;';
@@ -551,101 +557,152 @@ class cruddyMysql {
 
 			echo "</tr>
 						</thead>";
-			foreach($res as $k => $r) {
-				$pagedResults = (array)$r;
-				echo "   <tr>\n";
 
-				$edit_url = $definitions[TABLE_CONFIG][EDIT_LINK];
-				$del_url  = $definitions[TABLE_CONFIG][DELETE_LINK];
+		
+			//
+			$databases = array();
+			if ($definitions[TABLE_CONFIG][OBJECT_IS_AGGREGATE]) {
+				foreach ($definitions[TABLE_CONFIG]['all_databases'] as $server=>$values) {
+					foreach ($values as $database) {
+						$databases[$database]['db_name'] = $database;
+						//$databases[$database]['db_port'] = $definitions[TABLE_CONFIG]['all_ports'][$server];
+						$databases[$database]['db_password'] = $definitions[TABLE_CONFIG]['all_passwords'][$server];
+						$databases[$database]['db_server'] = $definitions[TABLE_CONFIG]['all_servers'][$server];
+						$databases[$database]['db_user'] = $definitions[TABLE_CONFIG]['all_users'][$server];
+					}
+				}
+			} else {
+				$database = $this->dba->info['db'];
+				$databases[$database]['db_name'] = $database;
+				$databases[$database]['db_port'] = $this->dba->info['user'];
+				$databases[$database]['db_password'] = $this->dba->info['pass'];
+				$databases[$database]['db_server'] = $this->dba->info['host'];
+				$databases[$database]['db_user'] = $this->dba->info['user'];
+			}
+			
+			$aggregateTotals = array();
+			foreach ($databases as $dbId=>$dbAttribs) {
+				$this->dba->setHost($dbAttribs['db_server']);
+				$this->dba->setPass($dbAttribs['db_password']);
+				$this->dba->setUser($dbAttribs['db_user']);
+				$this->dba->connectToNewDB($dbAttribs['db_name']);
+				$this->doQuery($filter);
+				$res  = &$this->result;
+				
+				foreach($res as $k => $r) {
+					$pagedResults = (array)$r;
+					echo "   <tr>\n";
 
-				if ($definitions[TABLE_CONFIG][OBJECT_HIDE_EDIT_LINK] == 1) {
-					$edit_url = "";
-				}
-				if ($definitions[TABLE_CONFIG][OBJECT_HIDE_DELETE_LINK] == 1) {
-					$del_url = "";
-				}
+					if ($definitions[TABLE_CONFIG][OBJECT_IS_AGGREGATE]) {
+						echo "<td>{$dbAttribs['db_name']}</td>";
+					}
+					$edit_url = $definitions[TABLE_CONFIG][EDIT_LINK];
+					$del_url  = $definitions[TABLE_CONFIG][DELETE_LINK];
 
-				foreach($pagedResults as $k2 => $v2) {
-					$edit_url = str_replace('%'.$k2.'%', $v2,  $edit_url);
-					$del_url  = str_replace('%'.$k2.'%', $v2,  $del_url);
-				}
-				$count=0;
-				foreach($definitions as $k => $v) {
-					 if (!is_array($v)) {continue;}
-					if ( ! isset($v[SHOWCOLUMN]) || $v[SHOWCOLUMN] == 0) continue;
-					$count++;
-					$text = "";
-					if (isset($v[PRETEXTREAD])) {
-						$processedText = $v[PRETEXTREAD];
-						foreach($pagedResults as $k2 => $v2) {
-							$processedText = str_replace('%'.$k2.'%', $v2, rawurldecode($processedText));
+					if ($definitions[TABLE_CONFIG][OBJECT_HIDE_EDIT_LINK] == 1) {
+						$edit_url = "";
+					}
+					if ($definitions[TABLE_CONFIG][OBJECT_HIDE_DELETE_LINK] == 1) {
+						$del_url = "";
+					}
+
+					foreach($pagedResults as $k2 => $v2) {
+						$edit_url = str_replace('%'.$k2.'%', $v2,  $edit_url);
+						$del_url  = str_replace('%'.$k2.'%', $v2,  $del_url);
+					}
+					$count=0;
+					foreach($definitions as $k => $v) {
+						if (!is_array($v)) {continue;}
+						if ( ! isset($v[SHOWCOLUMN]) || $v[SHOWCOLUMN] == 0) continue;
+						$count++;
+						$text = "";
+						if (isset($v[PRETEXTREAD])) {
+							$processedText = $v[PRETEXTREAD];
+							foreach($pagedResults as $k2 => $v2) {
+								$processedText = str_replace('%'.$k2.'%', $v2, rawurldecode($processedText));
+							}
+							$text .= $processedText;
 						}
-						$text .= $processedText;
-					}
-
-					$text .= htmlentities((isset($info[$k]["OPTIONS"][$r[$k]]) && !empty($r[$k])) ? $info[$k]["OPTIONS"][$r[$k]] : $r[$k]);
-					if (isset($v[POSTTEXTREAD])) {
-						$processedText = $v[POSTTEXTREAD];
-						foreach($pagedResults as $k2 => $v2) {
-							$processedText = str_replace('%'.$k2.'%', $v2,  rawurldecode($processedText));
+						$dataElementValue = (isset($info[$k]["OPTIONS"][$r[$k]]) && !empty($r[$k])) ? $info[$k]["OPTIONS"][$r[$k]] : $r[$k];
+						if (is_numeric($dataElementValue)) {
+							$aggregateTotals[$k] += $dataElementValue;
+						} else {
+							$aggregateTotals[$k] = 'N/A';
 						}
-						$text .= $processedText;
-					}
-					if (empty($text) && $text !=='0') {
-						 $text .= "<span style='color:#EBEBEB'>(No ".$v[CAPTION].")</span>";
+						$text .= htmlentities($dataElementValue);
+						if (isset($v[POSTTEXTREAD])) {
+							$processedText = $v[POSTTEXTREAD];
+							foreach($pagedResults as $k2 => $v2) {
+								$processedText = str_replace('%'.$k2.'%', $v2,  rawurldecode($processedText));
+							}
+							$text .= $processedText;
+						}
+						if (empty($text) && $text !=='0') {
+							 $text .= "<span style='color:#EBEBEB'>(No ".$v[CAPTION].")</span>";
+						}
+
+						$linkStart = $linkEnd = "";
+						if ($definitions[TABLE_CONFIG][OBJECT_HIDE_DETAILS_LINK] == 0 && $count == 1) {
+							$linkStart  = "<a href='".str_replace("update_","view_",$edit_url);
+							if ($this->isPageInclude) {
+								$linkStart .= "&conf=$this->current_config";
+							}
+							$linkStart .= "'>";
+							$linkEnd = "</a>";
+						}
+
+						if (strlen($text) > 30 && preg_match("|<[^>]+>(.*)</[^>]+>|U",$text)==0 && !stristr($text,"<img") && !stristr($text,"<input")) {
+							$text = substr($text,0,30)."...";
+						}
+						if ($info[$k]["TYPE"] == 'select') {
+							$parts = parse_url($definitions[TABLE_CONFIG]['connection']);
+							if (!$this->isPageInclude) {
+								$text .= " <strong style=\"color:black;\">(<a href=\"?action=view_".str_replace("/","",$parts['path'])."_".$v[TABLE]."&". $v[ID] . "=". $r[$k] ."\">{$r[$k]}</a>)</strong>";
+							}
+						}
+
+						echo "<td>".$linkStart.stripslashes($text).$linkEnd."</td>\n";
+						// -- debug the row
+						//echo "<td>".var_export($r,true)."</td>";
+
 					}
 
-					$linkStart = $linkEnd = "";
-					if ($definitions[TABLE_CONFIG][OBJECT_HIDE_DETAILS_LINK] == 0 && $count == 1) {
-						$linkStart  = "<a href='".str_replace("update_","view_",$edit_url);
+					if (!empty($edit_url)) {
+						$edTxt = ($definitions[TABLE_CONFIG][EDIT_TEXT]) ? $definitions[TABLE_CONFIG][EDIT_TEXT] : 'Edit';
+						$edit = '<a title="Edit this '.$definitions[TABLE_CONFIG][OBJECT_DESC].'" href="'.$edit_url;
 						if ($this->isPageInclude) {
 							$linkStart .= "&conf=$this->current_config";
 						}
-						$linkStart .= "'>";
-						$linkEnd = "</a>";
+						$edit .= '">'.$edTxt.'</a> - ';
 					}
-
-					if (strlen($text) > 30 && preg_match("|<[^>]+>(.*)</[^>]+>|U",$text)==0 && !stristr($text,"<img") && !stristr($text,"<input")) {
-						$text = substr($text,0,30)."...";
+					if (!empty($del_url)) {
+						$delTxt = ($definitions[TABLE_CONFIG][DELETE_TEXT]) ? $definitions[TABLE_CONFIG][DELETE_TEXT] : "Delete";
+						$delete = '<a title="Delete this '.$definitions[TABLE_CONFIG][OBJECT_DESC].'" href="javascript:if(window.confirm(\'Are you sure you wish to delete this '.$this->object_name.'?\')){document.location=\''.$del_url.'\';}">'.$delTxt.'</a>';
 					}
-					if ($info[$k]["TYPE"] == 'select') {
-						$parts = parse_url($definitions[TABLE_CONFIG]['connection']);
-						if (!$this->isPageInclude) {
-							$text .= " <strong style=\"color:black;\">(<a href=\"?action=view_".str_replace("/","",$parts['path'])."_".$v[TABLE]."&". $v[ID] . "=". $r[$k] ."\">{$r[$k]}</a>)</strong>";
+					if (is_array($definitions[TABLE_CONFIG][OTHER_LINKS])) {
+						$other = '';
+						foreach ($definitions[TABLE_CONFIG][OTHER_LINKS] as $key=>$value) {
+							$other_url = $value;
+							foreach($r as $k2 => $v2) {
+								$other_url  = str_replace('%'.$k2.'%', $v2,  rawurldecode($other_url));
+							}
+							$other .= ' - <a href="'.$other_url.'">'.$key.'</a>';
 						}
 					}
-
-					echo "<td>".$linkStart.stripslashes($text).$linkEnd."</td>\n";
-					// -- debug the row
-					//echo "<td>".var_export($r,true)."</td>";
-
+					echo '<td><nobr>'.$edit.$delete.$other.'</nobr></td>'."\n";
+					echo "</tr>\n";
 				}
-
-				if (!empty($edit_url)) {
-					$edTxt = ($definitions[TABLE_CONFIG][EDIT_TEXT]) ? $definitions[TABLE_CONFIG][EDIT_TEXT] : 'Edit';
-					$edit = '<a title="Edit this '.$definitions[TABLE_CONFIG][OBJECT_DESC].'" href="'.$edit_url;
-					if ($this->isPageInclude) {
-						$linkStart .= "&conf=$this->current_config";
-					}
-					$edit .= '">'.$edTxt.'</a> - ';
-				}
-				if (!empty($del_url)) {
-					$delTxt = ($definitions[TABLE_CONFIG][DELETE_TEXT]) ? $definitions[TABLE_CONFIG][DELETE_TEXT] : "Delete";
-					$delete = '<a title="Delete this '.$definitions[TABLE_CONFIG][OBJECT_DESC].'" href="javascript:if(window.confirm(\'Are you sure you wish to delete this '.$this->object_name.'?\')){document.location=\''.$del_url.'\';}">'.$delTxt.'</a>';
-				}
-				if (is_array($definitions[TABLE_CONFIG][OTHER_LINKS])) {
-					$other = '';
-					foreach ($definitions[TABLE_CONFIG][OTHER_LINKS] as $key=>$value) {
-						$other_url = $value;
-						foreach($r as $k2 => $v2) {
-							$other_url  = str_replace('%'.$k2.'%', $v2,  rawurldecode($other_url));
-						}
-						$other .= ' - <a href="'.$other_url.'">'.$key.'</a>';
-					}
-				}
-				echo '<td><nobr>'.$edit.$delete.$other.'</nobr></td>'."\n";
-				echo "   </tr>\n";
 			}
+			
+			if ($definitions[TABLE_CONFIG][OBJECT_IS_AGGREGATE]) {
+				echo "<tr>";
+				echo "<td>Totals</td>";
+				foreach ($aggregateTotals as $kAgg=>$vAgg) {
+					echo "<td>$vAgg</td>";
+				}
+				echo "</tr>\n\n";
+			}
+			
 		} else {
 			echo "<tr> \n";
 			if ($_COOKIE['current_db']) {
@@ -1250,8 +1307,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		$this->tableControlType[DELETE_TEXT]['type'] = "text";
 		$this->tableControlType[OBJECT_DELETE_CHECK_CONSTRAINTS]['desc'] = "Referential Integrity<br/>On Same Fields?";
 		$this->tableControlType[OBJECT_DELETE_CHECK_CONSTRAINTS]['type'] = "checkbox";
-		$this->tableControlType[OBJECT_PK]['desc'] = "Primary Key";
-		$this->tableControlType[OBJECT_PK]['type'] = "text";
+		/*$this->tableControlType[OBJECT_PK]['desc'] = "Primary Key";
+		$this->tableControlType[OBJECT_PK]['type'] = "text";*/
 		$this->tableControlType[OBJECT_DEFAULT_ORDER]['desc'] = "Default Order<br/>{FIELDNAME} DESC/ASC";
 		$this->tableControlType[OBJECT_DEFAULT_ORDER]['type'] = "text";
 		$this->tableControlType[OBJECT_READ_FILTER]['desc'] = "WHERE Clause Filter On Read";
@@ -1709,6 +1766,11 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						$user = $this->currentAdminDB['crud']['mysql_user_names'][$server];
 						$pass = $this->currentAdminDB['crud']['mysql_passwords'][$server];
 						$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_CONNECTION_STRING] = "mysql://$user:$pass@$serverName:$port/$database";
+						$crudTableControl[$currentTable][TABLE_CONFIG]['all_databases'] = $this->currentAdminDB['crud']['mysql_databases'];
+						$crudTableControl[$currentTable][TABLE_CONFIG]['all_ports'] = $this->currentAdminDB['crud']['mysql_ports'];
+						$crudTableControl[$currentTable][TABLE_CONFIG]['all_servers'] = $this->currentAdminDB['crud']['mysql_server_names'];
+						$crudTableControl[$currentTable][TABLE_CONFIG]['all_users'] = $this->currentAdminDB['crud']['mysql_user_names'];
+						$crudTableControl[$currentTable][TABLE_CONFIG]['all_passwords'] = $this->currentAdminDB['crud']['mysql_passwords'];
 					}
 					$crudObject = new cruddyMysql($crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_CONNECTION_STRING],$crudTableControl[$currentTable][TABLE_CONFIG][OBJECT_TABLE],$crudTableControl[$currentTable]);
 				} else {
@@ -2195,8 +2257,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		}
 		echo $this->displayGenericObjects();
 		
-		$valMaster = (isset($this->currentAdminDB['crud']['mysql_master_database_configuration'])) ? $this->currentAdminDB['crud']['mysql_master_database_configuration'] : 0;
-		$valMaster2 = (isset($this->currentAdminDB['crud']['mysql_master_database_configuration'])) ? $this->currentAdminDB['crud']['mysql_master_database_configuration'] : "Off";
+		$valMaster = ($this->currentAdminDB['crud']['mysql_master_database_configuration']) ? $this->currentAdminDB['crud']['mysql_master_database_configuration'] : "0";
+		$valMaster2 = ($this->currentAdminDB['crud']['mysql_master_database_configuration']) ? $this->currentAdminDB['crud']['mysql_master_database_configuration'] : "Off";
 		
 		echo
 			"
@@ -2214,7 +2276,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						</tr>
 				 </table>
 				 <a class='button' onclick='storeDatabaseInfo()'><span>Select A Database</span></a>
-				 <span style=\"cursor:pointer;\">Master Config Mode</span><input style='display: none;' onclick=\"toggleObj('masterMode');\" name='masterMode' id='masterMode' value='$valMaster' checked='checked' type='checkbox'><span id='masterMode[onoff]' class='off' onclick=\"toggleObj('masterMode');if ($('masterMode').value == 1) { var val = window.prompt('Enter the master database name'); $('masterMode').value = val;} \">$valMaster2</span>
+				 <span style=\"cursor:pointer;\" title=\"If you have multiple databases with the same schema,use this mode to point one configuration against all DBs\">Master Config Mode</span><input style='display: none;' onclick=\"toggleObj('masterMode');\" name='masterMode' id='masterMode' value='$valMaster' type='checkbox'><span id='masterMode[onoff]' class='off' onclick=\"toggleObj('masterMode');if ($('masterMode').value == 1) { var val = window.prompt('Enter the master database name'); $('masterMode').value = val;} \">$valMaster2</span>
 			</div>
 			";
 			$this->closeDatabase($conn);
@@ -2278,7 +2340,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		foreach ($mysqlServers as $mySQLServerHash=>$mySQLServer) {
 			$tableControlFlagDisplay = false;
 			foreach ($mysqlDatabases[$mySQLServerHash] as $database) {
-				if ($this->currentAdminDB['crud']['mysql_master_database_configuration'] != $database) {
+				if ($this->currentAdminDB['crud']['mysql_master_database_configuration'] !== false && $this->currentAdminDB['crud']['mysql_master_database_configuration'] != $database) {
 					continue;
 				}
 				$failure = false;
@@ -2304,6 +2366,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						} else {
 							$options .= "<td></td>";
 						}
+							$options .= "<td></td>";
+							$options .= "<td></td>";
 						foreach ($this->tableControlType as $type=>$text) {
 							if (!isset($_GET['edit']) && $type == OBJECT_PK) {
 								// -- dont let user try and edit PK.  these will be set on next page
@@ -2335,6 +2399,8 @@ class cruddyMysqlAdmin extends cruddyMysql {
 					<tr>
 						<td></td>
 						<td><a onclick='if (this.innerHTML==\"Uncheck All\") { cruddy(\".tableNames\").attr(\"checked\",false); this.innerHTML = \"Check All\";} else { cruddy(\".tableNames\").attr(\"checked\",true); this.innerHTML = \"Uncheck All\"; }'>Uncheck All</a></td>
+						<td></td>
+						<td></td>
 						<td></td>
 					";
 					foreach ($this->tableControlType as $key=>$text) {
@@ -2835,6 +2901,9 @@ ob_end_flush();
 							}
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_DESC] = $_REQUEST['tableConfig'][$server][$database][$tableHash][OBJECT_DESC];
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_IS_AGGREGATE] = $_REQUEST['tables'][$server][$database][$tableHash]['Aggregate'];
+							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_DEFAULT_ORDER] = $_REQUEST['tableConfig'][$server][$database][$tableHash]['defaultorder'];
+							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_READ_FILTER] = $_REQUEST['tableConfig'][$server][$database][$tableHash]['filterrecords'];
+							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_FILTER_DESC] = $_REQUEST['tableConfig'][$server][$database][$tableHash]['filterrecordsdescription'];
 							$pk = $primaryKey['PK'];
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG][OBJECT_PK] = $pk;
 							$this->currentAdminDB[CRUD_FIELD_CONFIG][$tableHash][TABLE_CONFIG]['alias'] = $tableHash;
