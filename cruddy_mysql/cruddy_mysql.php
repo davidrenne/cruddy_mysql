@@ -1,7 +1,10 @@
 <?php
 
 $pwd = dirname(__FILE__);
-$absPath = "/".str_replace(str_replace("\\","/",$_SERVER['DOCUMENT_ROOT']),"",str_replace("\\","/",$pwd))."/";
+$absPath = str_replace(str_replace("\\","/",$_SERVER['DOCUMENT_ROOT']),"",str_replace("\\","/",$pwd))."/";
+if (substr($absPath,0,1) != '/') {
+	$absPath = '/'.$absPath;
+}
 define("ABS_PATH_TO_CRUDDY_MYSQL_FOLDER",$absPath);
 ini_set("memory_limit","256M");
 set_time_limit(0);
