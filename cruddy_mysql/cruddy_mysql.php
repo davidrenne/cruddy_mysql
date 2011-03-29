@@ -2252,7 +2252,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 					$selected = "selected";
 				}
 				if ($value['Database'] == 'information_schema' || $value['Database'] == 'mysql') { continue; }
-				$options .= "<option value='$mySQLServer".":".$this->currentAdminDB['crud']['mysql_ports'][$mySQLServerHash]."' $selected>".$mySQLServer . ' -> ' . $value['Database']."</option>";
+				$options .= "<option value='$mySQLServer".":".$this->currentAdminDB['crud']['mysql_ports'][$mySQLServerHash]."' $selected title='$mySQLServer -> {$value['Database']}'>".$value['Database']."</option>";
 			}
 		}
 		if (!isset($_GET['edit'])) {
