@@ -1685,7 +1685,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 				if ($this->isPageInclude) {
 					echo "<div style=\"float:right\"><a onclick=\"javascript:alert('The links to the left are to configure $this->current_config configuration.')\" href=\"#\">($this->current_config)</a></div>";
 				}
-			} elseif ($_COOKIE['current_user'] && !isset($_COOKIE['tempAdmin'])) {
+			} elseif ( (isset($this->currentAdminDB['crud']['groups']) && $this->currentAdminDB['crud']['group_tables'] == 1) == false && $_COOKIE['current_user'] && !isset($_COOKIE['tempAdmin'])) {
 				echo
 				"<div style=\"clear:both;\"></div>
 				<div style=\"float:left\" id=\"menu2\" class=\"menu2\">
