@@ -589,6 +589,7 @@ class cruddyMysql {
 				$this->dba->setPass($dbAttribs['db_password']);
 				$this->dba->setUser($dbAttribs['db_user']);
 				$this->dba->connectToNewDB($dbAttribs['db_name']);
+				$res  = array();
 				$this->doQuery($filter);
 				$res  = &$this->result;
 				
@@ -629,9 +630,9 @@ class cruddyMysql {
 						$dataElementValue = (isset($info[$k]["OPTIONS"][$r[$k]]) && !empty($r[$k])) ? $info[$k]["OPTIONS"][$r[$k]] : $r[$k];
 						if (is_numeric($dataElementValue)) {
 							$aggregateTotals[$k] += $dataElementValue;
-						} else {
+						} /*else {
 							$aggregateTotals[$k] = 'N/A';
-						}
+						}*/
 						$text .= htmlentities($dataElementValue);
 						if (isset($v[POSTTEXTREAD])) {
 							$processedText = $v[POSTTEXTREAD];
