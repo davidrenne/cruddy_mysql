@@ -2186,7 +2186,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						</tr>
 						<tr>
 							 <td>Cruddy mySQL Instance Name:</td>
-							 <td>\"".$_SERVER["SERVER_NAME"]."_".ABS_PATH_HASH."\"<br/>(dont change your path or you'll have to rename /configuration files)</td>
+							 <td>\"crud_".$_SERVER["SERVER_NAME"]."_".ABS_PATH_HASH."\"<br/>(dont change your path or you'll have to rename /configuration files)</td>
 						</tr>
 						<tr>
 							 <td><a class='button' onclick='storeConnectionInfo(1)'><span>Add Another Server</span></a></td>
@@ -2457,7 +2457,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						$selected = "";
 						$tableName = $value['Tables_in_'.$database];
 						$tableType = $value['Table_type'];
-						if ($tableType == 'BASE TABLE') {
+						if (empty($tableType) || $tableType == 'BASE TABLE') {
 							$tableType = 'Table';
 						} elseif ($tableType == 'VIEW') {
 							$tableType = 'View';
