@@ -1,11 +1,8 @@
 <?php
 
 $pwd = dirname(__FILE__);
-$absPath = str_replace(str_replace("\\","/",$_SERVER['DOCUMENT_ROOT']),"",str_replace("\\","/",$pwd))."/";
-if (substr($absPath,0,1) != '/') {
-	$absPath = '/'.$absPath;
-}
-define("ABS_PATH_TO_CRUDDY_MYSQL_FOLDER",$absPath);
+define("ABS_PATH_TO_CRUDDY_MYSQL_FOLDER",dirname($_SERVER['PHP_SELF']).'/cruddy_mysql/');
+define("ABS_PATH_HASH",substr(md5(dirname($_SERVER['PHP_SELF']).'/cruddy_mysql/'),0,8));
 ini_set("memory_limit","256M");
 set_time_limit(0);
 set_magic_quotes_runtime(false); // -- dude just dont use magic quotes...
@@ -1240,10 +1237,10 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		}
 
 		$this->paintedHead = false;
-		$this->adminFile = getcwd().$this->systemDirectorySeparator."configurations".$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME'].".config.php";
-		$this->functionsFile = getcwd().$this->systemDirectorySeparator."configurations".$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME'].".custom.functions.php";
-		$this->functionsDrawFile = getcwd().$this->systemDirectorySeparator."configurations".$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME'].".draw.functions.php";
-		$this->databaseConnectionFile = getcwd().$this->systemDirectorySeparator."configurations".$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME'].".connections.php";
+		$this->adminFile = getcwd().$this->systemDirectorySeparator."configurations".$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME']."_".ABS_PATH_HASH.".config.php";
+		$this->functionsFile = getcwd().$this->systemDirectorySeparator."configurations".$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME']."_".ABS_PATH_HASH.".custom.functions.php";
+		$this->functionsDrawFile = getcwd().$this->systemDirectorySeparator."configurations".$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME']."_".ABS_PATH_HASH.".draw.functions.php";
+		$this->databaseConnectionFile = getcwd().$this->systemDirectorySeparator."configurations".$this->systemDirectorySeparator."crud_".$_SERVER['SERVER_NAME']."_".ABS_PATH_HASH.".connections.php";
 		if ($this->adminDBExists()) {
 			$this->currentAdminDB = $this->readAdminDB();
 		}
@@ -2168,7 +2165,7 @@ class cruddyMysqlAdmin extends cruddyMysql {
 		echo
 			"
 			<div id='serverinfo'>
-				 Step 1: Server Connections
+				 Step 1: CruddyMySQL Server Connections
 				 <table>
 					$adminHTML
 						<tr>
@@ -2186,6 +2183,10 @@ class cruddyMysqlAdmin extends cruddyMysql {
 						<tr>
 							 <td>MySQL Password:</td>
 							 <td><input type='password' class='admin' id='password' value='$defaultPassword'/></td>
+						</tr>
+						<tr>
+							 <td>Cruddy mySQL Instance Name:</td>
+							 <td>\"".$_SERVER["SERVER_NAME"]."_".ABS_PATH_HASH."\"<br/>(dont change your path or you'll have to rename /configuration files)</td>
 						</tr>
 						<tr>
 							 <td><a class='button' onclick='storeConnectionInfo(1)'><span>Add Another Server</span></a></td>
@@ -4192,7 +4193,7 @@ EOD;
 		if (isset($_GET['conf']) && $_GET['conf'] != $this->current_config) {
 			return;
 		}
-		echo "<div class='success'>$this->adminFile has been productionizedinto a secure read only php array.<br/><a href=\"javascript:history.go(-1);\">(Click Here To Go Back)</a></div>";
+		echo "<div class='success'>$this->adminFile has been productionized into a secure php array.<br/><a href=\"javascript:history.go(-1);\">(Click Here To Go Back)</a></div>";
 		$this->writeAdminDB("<?php\n\n\$cruddyMysqlConfiguration  = ".var_export($this->currentAdminDB,true).";\n\n?>");
 	}
 
