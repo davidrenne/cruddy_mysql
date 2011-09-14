@@ -26,6 +26,8 @@ FUNCTIONALITIES
 
 *Stylize some of your tables and data by switching themes
 
+*Use tokens such as %field_name% which will be replaced with actual values on the record to allow you to pass additional data to custom links
+
 GETTING STARTED
 ============
 If you leave the cruddy_mysql folder with the original name, you dont need to configure anything.
